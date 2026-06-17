@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灶囍手作 ─ 店家後台</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --brown-dark:#3D1F0D;--brown-mid:#6B3416;--gold:#C9A84C;--gold-light:#F5C97A;
+  --cream:#FDF6EC;--cream-dark:#F0E4CC;--green:#2D6A17;--green-bg:#EAF4E2;
+  --blue:#1A5C8A;--blue-bg:#E2EFF8;--red:#B82E22;--red-bg:#FBEAE9;
+  --orange:#B85E00;--orange-bg:#FEF3E2;--gray:#6B7280;--gray-bg:#F3F4F6;
+  --text:#1A0E06;--border:#E0CDB4;--white:#FFFFFF;--radius:10px;
+  --shadow:0 2px 10px rgba(61,31,13,0.10);
+}
+body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans TC","PingFang TC",sans-serif;min-height:100vh;}
+.topbar{background:linear-gradient(135deg,#8B1A1A,#C0392B);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,0.25);position:sticky;top:0;z-index:100;}
+.topbar h1{color:#fff;font-size:18px;font-weight:800;letter-spacing:2px;}
+.topbar h1 span{color:var(--gold-light);}
+.btn-refresh{padding:7px 16px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;font-size:13px;cursor:pointer;}
+.last-update{color:rgba(255,255,255,0.6);font-size:11px;margin-top:2px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px 0;}
+@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
+.stat-card .num{font-size:28px;font-weight:900;color:#8B1A1A;line-height:1;}
+.stat-card .lbl{font-size:10px;color:var(--gray);margin-top:3px;letter-spacing:1px;}
+.filter-tabs{padding:12px 14px 0;display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.filter-tabs::-webkit-scrollbar{display:none;}
+.tab-btn{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.tab-btn.active{background:#8B1A1A;border-color:#8B1A1A;color:#fff;}
+.section-block{margin:12px 14px 0;}
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.section-header h2{font-size:14px;font-weight:800;color:#8B1A1A;}
+.count-badge{background:var(--gold);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center;}
+.order-card{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:9px;box-shadow:var(--shadow);border-left:4px solid var(--border);}
+.order-card.delivery{border-left-color:var(--blue);}
+.order-card.pickup-store{border-left-color:var(--gold);}
+.order-card.pickup-711{border-left-color:#2D6A17;}
+.order-card.done{border-left-color:var(--gray);opacity:.7;}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;}
+.order-id{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;}
+.order-time{font-size:10px;color:var(--gray);margin-top:1px;}
+.pickup-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:1px;}
+.pickup-badge.delivery{background:var(--blue-bg);color:var(--blue);}
+.pickup-badge.self{background:var(--orange-bg);color:var(--orange);}
+.pickup-badge.s711{background:var(--green-bg);color:var(--green);}
+.card-main{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-bottom:11px;}
+.info-item{display:flex;flex-direction:column;}
+.info-item .key{font-size:10px;color:var(--gray);letter-spacing:1px;font-weight:600;margin-bottom:1px;}
+.info-item .val{font-size:14px;font-weight:700;color:var(--text);}
+.info-item.full{grid-column:1/-1;}
+.info-item .val.big{font-size:19px;color:#8B1A1A;}
+.info-item .val.sm{font-size:12px;font-weight:500;color:var(--gray);}
+.card-footer{border-top:1px solid var(--cream-dark);padding-top:11px;display:flex;gap:9px;flex-wrap:wrap;}
+.status-group{flex:1;min-width:130px;}
+.status-group label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--gray);display:block;margin-bottom:4px;}
+.status-select{width:100%;padding:8px 10px;border-radius:6px;border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text);background:var(--cream);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.status-select:focus{outline:none;border-color:var(--gold);}
+.pay-待確認{background:#FEF9E7;border-color:#F0C040;color:#7A5C00;}
+.pay-已付款{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
+.pay-現金未收{background:var(--orange-bg);border-color:#D4840A;color:var(--orange);}
+.pay-已收現金{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
+.ship-待出貨{background:var(--blue-bg);border-color:#3A7AB8;color:var(--blue);}
+.ship-已出貨{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
+.ship-待自取{background:var(--orange-bg);border-color:#D4840A;color:var(--orange);}
+.ship-自取完成{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
+.ship-取消{background:var(--red-bg);border-color:#D14040;color:var(--red);}
+.ship-待處理{background:var(--gray-bg);border-color:#ccc;color:var(--gray);}
+.empty-state{text-align:center;padding:28px;color:var(--gray);font-size:13px;}
+.empty-state .icon{font-size:32px;display:block;margin-bottom:7px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(61,31,13,0.25);display:none;align-items:center;justify-content:center;z-index:999;}
+.loading-box{background:var(--white);border-radius:12px;padding:24px 32px;text-align:center;font-size:14px;font-weight:600;color:#8B1A1A;}
+.spinner{width:32px;height:32px;border:3px solid var(--cream-dark);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#8B1A1A;color:#fff;padding:10px 22px;border-radius:22px;font-size:13px;font-weight:600;z-index:1000;transition:transform .3s ease;pointer-events:none;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.bottom-pad{height:28px;}
+.item-detail-wrap{font-size:12px;color:var(--gray);margin-top:3px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><div class="spinner"></div>載入中…</div></div>
+<div class="toast" id="toast"></div>
+<div class="topbar">
+  <div><h1>🍖 灶囍 <span>後台</span></h1><div class="last-update" id="lastUpdate">尚未載入</div></div>
+  <button class="btn-refresh" onclick="loadOrders()">🔄 重新整理</button>
+</div>
+<div class="stats-row">
+  <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
+  <div class="stat-card"><div class="num" id="stat-unpaid">—</div><div class="lbl">待確認付款</div></div>
+  <div class="stat-card"><div class="num" id="stat-ship">—</div><div class="lbl">待出貨</div></div>
+  <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">總訂單數</div></div>
+</div>
+<div class="filter-tabs">
+  <button class="tab-btn active" onclick="setFilter('all',this)">全部</button>
+  <button class="tab-btn" onclick="setFilter('today',this)">今日訂單</button>
+  <button class="tab-btn" onclick="setFilter('delivery-pending',this)">宅配待出貨</button>
+  <button class="tab-btn" onclick="setFilter('711-pending',this)">711待出貨</button>
+  <button class="tab-btn" onclick="setFilter('pickup-pending',this)">自取待領</button>
+  <button class="tab-btn" onclick="setFilter('unpaid',this)">待確認付款</button>
+  <button class="tab-btn" onclick="setFilter('done',this)">已完成</button>
+</div>
+<div id="orderSections"></div>
+<div class="bottom-pad"></div>
+
+<script>
+const SCRIPT_URL="https://script.google.com/macros/s/AKfycbzgKfiBdD3W1dKtBey5YECV_1TYF2cH3qHXI4wU3qsqDZ_EnpU8Z-meO6WYTqFfuVpU/exec";
+let allOrders=[],currentFilter="all";
+
+async function loadOrders(){
+  showLoading(true);
+  try{
+    const r=await fetch(SCRIPT_URL+"?action=getOrders&t="+Date.now());
+    const d=await r.json();
+    if(d.success){allOrders=d.orders.reverse();renderAll();updateStats();document.getElementById("lastUpdate").textContent="更新："+new Date().toLocaleTimeString("zh-TW");}
+    else showToast("載入失敗："+d.message);
+  }catch(e){showToast("網路錯誤，請檢查設定");}
+  showLoading(false);
+}
+
+function setFilter(f,el){currentFilter=f;document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));el.classList.add("active");renderAll();}
+
+function getTodayYMD(){const t=new Date();return t.getFullYear()+"/"+String(t.getMonth()+1).padStart(2,"0")+"/"+String(t.getDate()).padStart(2,"0");}
+
+function filterOrders(orders){
+  const ymd=getTodayYMD();
+  switch(currentFilter){
+    case"today": return orders.filter(o=>String(o.time).startsWith(ymd));
+    case"delivery-pending": return orders.filter(o=>String(o.pickup).startsWith("宅配")&&o.shipStatus==="待出貨");
+    case"711-pending": return orders.filter(o=>String(o.pickup).startsWith("7-11")&&o.shipStatus==="待出貨");
+    case"pickup-pending": return orders.filter(o=>String(o.pickup).startsWith("自取")&&o.shipStatus==="待自取");
+    case"unpaid": return orders.filter(o=>o.payStatus==="待確認");
+    case"done": return orders.filter(o=>["已出貨","自取完成","取消"].includes(o.shipStatus));
+    default: return orders;
+  }
+}
+
+function renderAll(){
+  const container=document.getElementById("orderSections");
+  if(currentFilter==="all"){
+    const ymd=getTodayYMD();
+    const todayPending=allOrders.filter(o=>String(o.time).startsWith(ymd)&&!["已出貨","自取完成","取消"].includes(o.shipStatus));
+    const delivPending=allOrders.filter(o=>String(o.pickup).startsWith("宅配")&&o.shipStatus==="待出貨");
+    const s711Pending=allOrders.filter(o=>String(o.pickup).startsWith("7-11")&&o.shipStatus==="待出貨");
+    const pickPending=allOrders.filter(o=>String(o.pickup).startsWith("自取")&&o.shipStatus==="待自取");
+    const done=allOrders.filter(o=>["已出貨","自取完成","取消"].includes(o.shipStatus));
+    container.innerHTML=[
+      renderSection("📅 今日待處理",todayPending),
+      renderSection("🚛 宅配待出貨",delivPending),
+      renderSection("🏪 7-11待出貨",s711Pending),
+      renderSection("🏠 自取待領",pickPending),
+      renderSection("✅ 已完成",done)
+    ].join("");
+  }else{
+    const titles={"today":"📅 今日訂單","delivery-pending":"🚛 宅配待出貨","711-pending":"🏪 7-11待出貨","pickup-pending":"🏠 自取待領","unpaid":"💳 待確認付款","done":"✅ 已完成"};
+    container.innerHTML=renderSection(titles[currentFilter]||"訂單列表",filterOrders(allOrders));
+  }
+}
+
+function renderSection(title,orders){
+  return '<div class="section-block"><div class="section-header"><h2>'+title+'</h2><span class="count-badge">'+orders.length+'</span></div>'+
+    (orders.length===0?'<div class="empty-state"><span class="icon">🎉</span>目前沒有訂單</div>':orders.map(renderCard).join(""))+
+    '</div>';
+}
+
+function renderCard(o){
+  const pickupStr=String(o.pickup||"");
+  const isDelivery=pickupStr.startsWith("宅配");
+  const is711=pickupStr.startsWith("7-11");
+  const isSelf=pickupStr.startsWith("自取");
+  const isDone=["已出貨","自取完成","取消"].includes(o.shipStatus);
+  const cardClass=isDone?"done":isDelivery?"delivery":is711?"pickup-711":"pickup-store";
+  const badgeClass=isDelivery?"delivery":is711?"s711":"self";
+  const badgeText=isDelivery?"🚛 低溫宅配":is711?"🏪 7-11店到店":"🏠 自取";
+  const payClass="pay-"+(o.payStatus||"").replace(/\s/g,"");
+  const shipClass="ship-"+(o.shipStatus||"").replace(/\s/g,"");
+
+  // 金額顯示
+  const totalDisp=o.total?("$"+Number(o.total).toLocaleString()):"—";
+  const feeDisp=o.shippingFee!=null?(Number(o.shippingFee)===0?"免運":"$"+Number(o.shippingFee)):"—";
+
+  // 地址/門市
+  let locationRow="";
+  if(isDelivery&&o.address) locationRow='<div class="info-item full"><span class="key">配送地址</span><span class="val sm">'+esc(o.address)+'</span></div>';
+  if(is711&&o.store711) locationRow='<div class="info-item full"><span class="key">711門市</span><span class="val sm">'+esc(o.store711)+'</span></div>';
+  if(isSelf&&o.pickupDate) locationRow='<div class="info-item"><span class="key">自取日期</span><span class="val">'+esc(o.pickupDate)+'</span></div>';
+
+  // 品項明細
+  const detailRow=o.itemDetail?'<div class="info-item full"><span class="key">品項明細</span><div class="item-detail-wrap">'+esc(o.itemDetail).replace(/；/g,"<br>")+'</div></div>':"";
+
+  return '<div class="order-card '+cardClass+'" id="card-'+o.orderId+'">'+
+    '<div class="card-header"><div><div class="order-id"># '+esc(o.orderId)+'</div><div class="order-time">'+esc(String(o.time))+'</div></div><span class="pickup-badge '+badgeClass+'">'+badgeText+'</span></div>'+
+    '<div class="card-main">'+
+      '<div class="info-item"><span class="key">姓名</span><span class="val">'+esc(o.name)+'</span></div>'+
+      '<div class="info-item"><span class="key">電話</span><span class="val">'+esc(o.phone)+'</span></div>'+
+      '<div class="info-item"><span class="key">訂單總計</span><span class="val big">'+totalDisp+'</span></div>'+
+      '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+' / 運費'+feeDisp+'</span></div>'+
+      locationRow+
+      detailRow+
+    '</div>'+
+    '<div class="card-footer">'+
+      '<div class="status-group"><label>💳 付款狀態</label>'+
+        '<select class="status-select '+payClass+'" id="pay-'+o.orderId+'" onchange="updateStatus(\''+o.orderId+'\',\'payStatus\',this.value,this)">'+
+        ["待確認","已付款","現金未收","已收現金"].map(s=>'<option value="'+s+'"'+(o.payStatus===s?" selected":"")+'>'+s+'</option>').join("")+
+        '</select></div>'+
+      '<div class="status-group"><label>🚚 出貨狀態</label>'+
+        '<select class="status-select '+shipClass+'" id="ship-'+o.orderId+'" onchange="updateStatus(\''+o.orderId+'\',\'shipStatus\',this.value,this)">'+
+        ["待處理","待出貨","已出貨","待自取","自取完成","取消"].map(s=>'<option value="'+s+'"'+(o.shipStatus===s?" selected":"")+'>'+s+'</option>').join("")+
+        '</select></div>'+
+    '</div></div>';
+}
+
+async function updateStatus(orderId,field,value,selectEl){
+  updateSelectStyle(selectEl,field,value);
+  const order=allOrders.find(o=>o.orderId===orderId);
+  if(order)order[field]=value;
+  try{
+    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId,field,value})});
+    const d=await r.json();
+    if(d.success)showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
+    else showToast("⚠️ 更新失敗："+d.message);
+  }catch(e){showToast("⚠️ 網路錯誤，請重試");}
+}
+
+function updateSelectStyle(el,field,value){
+  const prefix=field==="payStatus"?"pay-":"ship-";
+  el.className=el.className.replace(new RegExp(prefix+"\\S+","g"),"").trim();
+  el.classList.add(prefix+value.replace(/\s/g,""));
+}
+
+function updateStats(){
+  const ymd=getTodayYMD();
+  document.getElementById("stat-today").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)).length;
+  document.getElementById("stat-unpaid").textContent=allOrders.filter(o=>o.payStatus==="待確認").length;
+  document.getElementById("stat-ship").textContent=allOrders.filter(o=>o.shipStatus==="待出貨").length;
+  document.getElementById("stat-total").textContent=allOrders.length;
+}
+
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function showLoading(show){document.getElementById("loadingOverlay").style.display=show?"flex":"none";}
+function showToast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
+
+loadOrders();
+setInterval(loadOrders,60000);
+</script>
+</body>
+</html>
