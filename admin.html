@@ -104,7 +104,7 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <button class="tab-btn" onclick="setFilter('unpaid',this)">待確認付款</button>
   <button class="tab-btn" onclick="setFilter('done',this)">已完成</button>
 </div>
-  <div class="error-box" id="errorBox" style="display:none">
+<div class="error-box" id="errorBox" style="display:none">
   <div class="err-title">⚠️ 載入失敗</div>
   <div id="errorMsg"></div>
   <div class="err-url">API URL：<span id="errorUrl"></span></div>
@@ -224,7 +224,14 @@ function renderCard(o){
   let locationRow="";
   if(isDelivery&&o.address) locationRow='<div class="info-item full"><span class="key">配送地址</span><span class="val sm">'+esc(o.address)+'</span></div>';
   if(is711&&o.store711) locationRow='<div class="info-item full"><span class="key">711門市</span><span class="val sm">'+esc(o.store711)+'</span></div>';
-  if(isSelf&&o.pickupDate) locationRow='<div class="info-item"><span class="key">自取日期</span><span class="val">'+esc(o.pickupDate)+'</span></div>';
+  if(isSelf&&o.pickupDate){
+    const timeDisplay=o.pickupTime==="其他時間"?
+      '其他時間 '+esc(o.otherPickupDatetime||"")+'<br><span style="color:#C0392B;font-size:11px;">⚠️ 需店家確認</span>':
+      esc(o.pickupTime||"");
+    locationRow=
+      '<div class="info-item"><span class="key">自取日期</span><span class="val">'+esc(o.pickupDate)+'</span></div>'+
+      '<div class="info-item"><span class="key">自取時段</span><span class="val">'+timeDisplay+'</span></div>';
+  }
 
   // 品項明細
   const detailRow=o.itemDetail?'<div class="info-item full"><span class="key">品項明細</span><div class="item-detail-wrap">'+esc(o.itemDetail).replace(/；/g,"<br>")+'</div></div>':"";
