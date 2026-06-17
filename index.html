@@ -176,6 +176,32 @@ input.ef{border-color:var(--err);}
       <input type="date" id="pickup-date" class="inp" onchange="onDateChange()">
       <div class="errmsg" id="err-date">請選擇自取日期</div>
     </div>
+    <div class="field">
+      <label class="fl" for="timeslot">自取時段 <span class="req">*</span></label>
+      <select class="inp" id="timeslot" onchange="onTimeslotChange()">
+        <option value="">請選擇時段</option>
+        <option value="09:00-10:00">09:00-10:00</option>
+        <option value="10:00-11:00">10:00-11:00</option>
+        <option value="11:00-12:00">11:00-12:00</option>
+        <option value="12:00-13:00">12:00-13:00</option>
+        <option value="15:00-16:00">15:00-16:00</option>
+        <option value="16:00-17:00">16:00-17:00</option>
+        <option value="17:00-18:00">17:00-18:00</option>
+        <option value="18:00-19:00">18:00-19:00</option>
+        <option value="19:00-20:00">19:00-20:00</option>
+        <option value="20:00-21:00">20:00-21:00</option>
+        <option value="other">其他時間</option>
+      </select>
+      <div class="errmsg" id="err-timeslot">請選擇自取時段</div>
+    </div>
+    <div class="hidden-field" id="other-time-field">
+      <div class="field">
+        <label class="fl" for="other-time">其他自取時間 <span class="req">*</span></label>
+        <input type="time" id="other-time" class="inp">
+        <div class="errmsg" id="err-other-time">請填寫自取時間</div>
+      </div>
+      <div style="font-size:12px;color:var(--red);margin-top:-8px;margin-bottom:8px;padding:8px 12px;background:#fff5f5;border-radius:6px;">⚠️ 其他時間需等店家確認，我們會主動與您聯繫。</div>
+    </div>
   </div>
   <div class="hidden-field" id="addr-field">
     <div class="field" style="margin-top:12px;"><label class="fl" for="address">配送地址 <span class="req">*</span></label><input type="text" id="address" placeholder="請填寫完整地址"><div class="errmsg" id="err-address">請填寫配送地址</div></div>
@@ -259,6 +285,12 @@ function onDateChange(){
   selectedDate=el.value;
   if(selectedDate) document.getElementById("err-date").classList.remove("show");
 }
+function onTimeslotChange(){
+  const val=document.getElementById("timeslot").value;
+  const otherField=document.getElementById("other-time-field");
+  otherField.classList.toggle("hidden-field", val!=="other");
+  if(val) document.getElementById("err-timeslot").classList.remove("show");
+}
 function cq(k,d){qty[k]=Math.max(0,(qty[k]||0)+d);const el=document.getElementById("qn-"+k);el.textContent=qty[k];el.className="qty-num"+(qty[k]>0?" nz":"");document.getElementById("card-"+k).classList.toggle("active",qty[k]>0);updateTotal();}
 function getSubtotal(){return Object.keys(MENU).reduce((s,k)=>s+MENU[k].price*qty[k],0);}
 function calcShipping(sub,pickup){
@@ -306,6 +338,14 @@ function validate(){
   const pickup=(document.querySelector('input[name="pickup"]:checked')||{}).value;
   if(!pickup){showErr("err-pickup",true);ok=false;}else showErr("err-pickup",false);
   if(pickup==="自取"&&!selectedDate){showErr("err-date",true);ok=false;}else showErr("err-date",false);
+  if(pickup==="自取"){
+    const ts=document.getElementById("timeslot").value;
+    if(!ts){showErr("err-timeslot",true);ok=false;}else showErr("err-timeslot",false);
+    if(ts==="other"){
+      const ot=document.getElementById("other-time").value;
+      if(!ot){showErr("err-other-time",true);ok=false;}else showErr("err-other-time",false);
+    } else showErr("err-other-time",false);
+  }
   if(pickup==="宅配"){const addr=document.getElementById("address").value.trim();if(!addr){showErr("err-address",true);markErr("address",true);ok=false;}else{showErr("err-address",false);markErr("address",false);}}
   if(pickup==="7-11店到店"){const s=document.getElementById("store711").value.trim();if(!s){showErr("err-store711",true);markErr("store711",true);ok=false;}else{showErr("err-store711",false);markErr("store711",false);}}
   const payment=(document.querySelector('input[name="payment"]:checked')||{}).value;
@@ -326,7 +366,12 @@ function openConfirm(){
   const lines=Object.keys(MENU).filter(k=>qty[k]>0).map(k=>({name:MENU[k].name,qty:qty[k],sub:MENU[k].price*qty[k]}));
   const itemsHtml=lines.map(l=>'<div class="confirm-item-line"><span>'+l.name+' × '+l.qty+'</span><span>$'+l.sub.toLocaleString()+'</span></div>').join("");
   let pickupDisplay=pickup;
-  if(pickup==="自取")pickupDisplay="自取（"+selectedDate+"）";
+  if(pickup==="自取"){
+    const ts=document.getElementById("timeslot").value;
+    const ot=document.getElementById("other-time").value;
+    const timeDisplay=ts==="other"?"其他時間 "+ot:ts;
+    pickupDisplay="自取（"+selectedDate+" "+timeDisplay+"）";
+  }
   if(pickup==="7-11店到店")pickupDisplay="7-11 店到店（"+store711+"）";
   let addrRow="";
   if(pickup==="宅配")addrRow='<div class="confirm-row"><span class="ck">配送地址</span><span class="cv">'+esc(addr)+'</span></div>';
@@ -354,8 +399,14 @@ async function submitOrder(){
   else if(pickup==="自取"&&payment==="匯款"){payStatus="待確認";shipStatus="待自取";}
   else{payStatus="待確認";shipStatus="待出貨";}
   const itemDetail=Object.keys(MENU).filter(k=>qty[k]>0).map(k=>MENU[k].name+" x"+qty[k]+"，小計"+MENU[k].price*qty[k]).join("；");
-  const pickupDisplay=pickup==="自取"?"自取（"+selectedDate+"）":pickup==="7-11店到店"?"7-11店到店（"+document.getElementById("store711").value.trim()+"）":pickup;
-  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?document.getElementById("address").value.trim():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",qty:Object.keys(MENU).filter(k=>qty[k]>0).reduce((s,k)=>s+qty[k],0),itemDetail,total:grand,shippingFee:s.fee,payStatus,shipStatus};
+  const pickupTs=document.getElementById("timeslot")?.value||"";
+  const otherTime=document.getElementById("other-time")?.value||"";
+  const pickupTimeVal=pickupTs==="other"?"其他時間":pickupTs;
+  const otherPickupVal=pickupTs==="other"?otherTime:"";
+  const pickupDisplay=pickup==="自取"?
+    "自取（"+selectedDate+" "+(pickupTs==="other"?"其他時間 "+otherTime:pickupTs)+"）":
+    pickup==="7-11店到店"?"7-11店到店（"+document.getElementById("store711").value.trim()+"）":pickup;
+  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?document.getElementById("address").value.trim():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",pickupTime:pickup==="自取"?pickupTimeVal:"",otherPickupDatetime:pickup==="自取"?otherPickupVal:"",qty:Object.keys(MENU).filter(k=>qty[k]>0).reduce((s,k)=>s+qty[k],0),itemDetail,total:grand,shippingFee:s.fee,payStatus,shipStatus};
   try{
     const resp=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"submitOrder",data})});
     const result=await resp.json();
@@ -370,6 +421,11 @@ function resetAll(){
   selectedDate="";
   const pdEl=document.getElementById("pickup-date");
   if(pdEl) pdEl.value="";
+  const tsEl=document.getElementById("timeslot");
+  if(tsEl) tsEl.value="";
+  const otEl=document.getElementById("other-time");
+  if(otEl) otEl.value="";
+  document.getElementById("other-time-field")?.classList.add("hidden-field");
   document.querySelectorAll("input[type=radio]").forEach(r=>r.checked=false);
   ["bank-field","addr-field","store711-field","calendar-field"].forEach(id=>document.getElementById(id).classList.add("hidden-field"));
   document.getElementById("opt-cash").classList.remove("disabled");
