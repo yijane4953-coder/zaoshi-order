@@ -37,6 +37,9 @@ body{background:var(--paper);color:var(--ink);font-family:-apple-system,"Noto Sa
 .item-card{background:var(--white);border-radius:var(--radius);padding:12px 12px 12px 14px;margin-bottom:7px;box-shadow:0 1px 6px rgba(92,15,15,0.08);border-left:3px solid var(--border);display:flex;align-items:center;gap:10px;transition:border-color .15s,box-shadow .15s;}
 .item-card.active{border-left-color:var(--red);box-shadow:0 2px 12px rgba(192,57,43,0.13);}
 .item-icon{font-size:24px;flex-shrink:0;width:30px;text-align:center;}
+.item-img-wrap{flex-shrink:0;width:72px;height:72px;border-radius:8px;overflow:hidden;background:var(--paper-dark);}
+.item-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.item-card.has-img{align-items:flex-start;padding:12px;}
 .item-info{flex:1;min-width:0;}
 .item-name{font-size:15px;font-weight:800;color:var(--ink);}
 .item-desc{font-size:11px;color:var(--ink-muted);line-height:1.4;margin-top:1px;}
@@ -150,10 +153,38 @@ input.ef{border-color:var(--err);}
 </div>
 <div class="menu-section">
   <div class="menu-section-title"><div class="ln"></div><h2>🥩 單點區</h2><div class="ln r"></div></div>
-  <div class="item-card" id="card-dongpo"><div class="item-icon">🍖</div><div class="item-info"><div class="item-name">東坡肉</div><div class="item-desc">500g ± 10%</div></div><div class="item-price">450</div><div class="qty-ctrl"><button class="qty-btn" onclick="cq('dongpo',-1)">−</button><div class="qty-num" id="qn-dongpo">0</div><button class="qty-btn" onclick="cq('dongpo',1)">＋</button></div></div>
-  <div class="item-card" id="card-tipang"><div class="item-icon">🦵</div><div class="item-info"><div class="item-name">醬燒蹄膀</div><div class="item-desc">700g ± 10%</div></div><div class="item-price">470</div><div class="qty-ctrl"><button class="qty-btn" onclick="cq('tipang',-1)">−</button><div class="qty-num" id="qn-tipang">0</div><button class="qty-btn" onclick="cq('tipang',1)">＋</button></div></div>
-  <div class="item-card" id="card-pigjiao"><div class="item-icon">🐷</div><div class="item-info"><div class="item-name">醬燒豬腳</div><div class="item-desc">600g ± 10%</div></div><div class="item-price">290</div><div class="qty-ctrl"><button class="qty-btn" onclick="cq('pigjiao',-1)">−</button><div class="qty-num" id="qn-pigjiao">0</div><button class="qty-btn" onclick="cq('pigjiao',1)">＋</button></div></div>
-  <div class="item-card" id="card-sun"><div class="item-icon">🎋</div><div class="item-info"><div class="item-name">香滷嫩筍</div><div class="item-desc">600g ± 10%</div></div><div class="item-price">130</div><div class="qty-ctrl"><button class="qty-btn" onclick="cq('sun',-1)">−</button><div class="qty-num" id="qn-sun">0</div><button class="qty-btn" onclick="cq('sun',1)">＋</button></div></div>
+  <div class="item-card has-img" id="card-dongpo">
+    <div class="item-img-wrap"><img src="" id="img-dongpo" alt="東坡肉" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2272%22><rect width=%2272%22 height=%2272%22 fill=%22%23F0E4CC%22/><text x=%2236%22 y=%2244%22 font-size=%2228%22 text-anchor=%22middle%22>🍖</text></svg>'"></div>
+    <div class="item-info"><div class="item-name">東坡肉</div><div class="item-desc">500g ± 10%</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+      <div class="item-price">450</div>
+      <div class="qty-ctrl"><button class="qty-btn" onclick="cq('dongpo',-1)">−</button><div class="qty-num" id="qn-dongpo">0</div><button class="qty-btn" onclick="cq('dongpo',1)">＋</button></div>
+    </div>
+  </div>
+  <div class="item-card has-img" id="card-tipang">
+    <div class="item-img-wrap"><img src="" id="img-tipang" alt="醬燒蹄膀" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2272%22><rect width=%2272%22 height=%2272%22 fill=%22%23F0E4CC%22/><text x=%2236%22 y=%2244%22 font-size=%2228%22 text-anchor=%22middle%22>🦵</text></svg>'"></div>
+    <div class="item-info"><div class="item-name">醬燒蹄膀</div><div class="item-desc">700g ± 10%</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+      <div class="item-price">470</div>
+      <div class="qty-ctrl"><button class="qty-btn" onclick="cq('tipang',-1)">−</button><div class="qty-num" id="qn-tipang">0</div><button class="qty-btn" onclick="cq('tipang',1)">＋</button></div>
+    </div>
+  </div>
+  <div class="item-card has-img" id="card-pigjiao">
+    <div class="item-img-wrap"><img src="" id="img-pigjiao" alt="醬燒豬腳" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2272%22><rect width=%2272%22 height=%2272%22 fill=%22%23F0E4CC%22/><text x=%2236%22 y=%2244%22 font-size=%2228%22 text-anchor=%22middle%22>🐷</text></svg>'"></div>
+    <div class="item-info"><div class="item-name">醬燒豬腳</div><div class="item-desc">600g ± 10%</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+      <div class="item-price">290</div>
+      <div class="qty-ctrl"><button class="qty-btn" onclick="cq('pigjiao',-1)">−</button><div class="qty-num" id="qn-pigjiao">0</div><button class="qty-btn" onclick="cq('pigjiao',1)">＋</button></div>
+    </div>
+  </div>
+  <div class="item-card has-img" id="card-sun">
+    <div class="item-img-wrap"><img src="" id="img-sun" alt="香滷嫩筍" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2272%22><rect width=%2272%22 height=%2272%22 fill=%22%23F0E4CC%22/><text x=%2236%22 y=%2244%22 font-size=%2228%22 text-anchor=%22middle%22>🎋</text></svg>'"></div>
+    <div class="item-info"><div class="item-name">香滷嫩筍</div><div class="item-desc">600g ± 10%</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+      <div class="item-price">130</div>
+      <div class="qty-ctrl"><button class="qty-btn" onclick="cq('sun',-1)">−</button><div class="qty-num" id="qn-sun">0</div><button class="qty-btn" onclick="cq('sun',1)">＋</button></div>
+    </div>
+  </div>
 </div>
 <div class="form-card">
   <div class="form-sec-title">📋 訂購人資料</div>
@@ -253,6 +284,23 @@ input.ef{border-color:var(--err);}
   <button class="btn-again" onclick="resetAll()">繼續訂購</button>
 </div>
 <script>
+// ══════════════════════════════════════════════
+// 🖼️ 單點商品圖片設定（填入圖片網址即可）
+// ══════════════════════════════════════════════
+const PRODUCT_IMAGES = {
+  dongpo:  "https://drive.google.com/uc?export=view&id=1P8Jn_Imlyi1jDno8h7moIRSM9_-VFfvr",  // 東坡肉
+  tipang:  "https://drive.google.com/uc?export=view&id=1F4PWUPCGDGt6AGPzzqFIB9wWV2fC4BuJ",  // 醬燒蹄膀
+  pigjiao: "https://drive.google.com/uc?export=view&id=1ycWsnS7awNVY2ar8DP2pgpR_7Tf0LViR",  // 醬燒豬腳
+  sun:     "https://drive.google.com/uc?export=view&id=1uYQTB2Cb-4Pver-CAiRkei4Nr-5TA3e-",  // 香滷嫩筍
+};
+
+function initProductImages() {
+  Object.entries(PRODUCT_IMAGES).forEach(([key, url]) => {
+    const img = document.getElementById("img-" + key);
+    if(img && url) img.src = url;
+  });
+}
+
 const SCRIPT_URL="https://script.google.com/macros/s/AKfycbxR9NjivKPDVCoEhmS6H4NNZe91cTo1HtoEqVs0zuC3RbKJv1mxOz4gJZ2tDyObc0MJ/exec";
 const MENU={
   A:{name:"A套餐",desc:"東坡肉＋香滷嫩筍",price:560},
@@ -434,7 +482,7 @@ function resetAll(){
   document.getElementById("mainScreen").style.display="block";document.querySelector(".cart-strip").style.display="flex";
   document.getElementById("successScreen").style.display="none";window.scrollTo(0,0);
 }
-initDateInput();updateTotal();
+initDateInput();updateTotal();initProductImages();
 </script>
 </body>
 </html>
