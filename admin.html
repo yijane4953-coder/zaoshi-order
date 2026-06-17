@@ -110,6 +110,23 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <div class="err-url">API URL：<span id="errorUrl"></span></div>
 </div>
 <div id="orderSections"></div>
+
+<!-- 備貨統計 -->
+<div class="section-block" id="stockBlock">
+  <div class="section-header" style="margin-top:6px;">
+    <h2>📦 備貨統計</h2>
+  </div>
+  <div style="background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 10px rgba(61,31,13,0.10);">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="tab-btn active" id="stock-today" onclick="setStockDate('today',this)">今日</button>
+      <button class="tab-btn" id="stock-tomorrow" onclick="setStockDate('tomorrow',this)">明日</button>
+      <button class="tab-btn" id="stock-custom" onclick="setStockDate('custom',this)">指定日期</button>
+      <input type="date" id="stock-date-input" style="display:none;padding:6px 10px;border:1.5px solid #E0CDB4;border-radius:20px;font-size:12px;font-weight:600;color:#6B7280;" onchange="renderStock()">
+    </div>
+    <div id="stockResult"></div>
+  </div>
+</div>
+
 <div class="bottom-pad"></div>
 
 <script>
@@ -147,6 +164,7 @@ async function loadOrders(){
       console.log("✅ 載入成功，訂單數：", allOrders.length);
       renderAll();
       updateStats();
+      renderStock();
       document.getElementById("lastUpdate").textContent="更新："+new Date().toLocaleTimeString("zh-TW");
     } else {
       console.error("❌ API 回傳失敗：", d.message);
@@ -306,6 +324,114 @@ function showError(msg){
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function showLoading(show){document.getElementById("loadingOverlay").style.display=show?"flex":"none";}
 function showToast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
+
+// ── 套餐拆解對應表 ────────────────────────────
+const SET_DECOMPOSE = {
+  "A套餐": {dongpo:1, sun:1},
+  "B套餐": {tipang:1, sun:1},
+  "C套餐": {dongpo:1, pigjiao:1, sun:1},
+  "D套餐": {tipang:1, pigjiao:1, sun:1},
+  "E套餐": {dongpo:1, tipang:1, pigjiao:1, sun:1},
+  "F套餐": {dongpo:1, pigjiao:1},
+  "G套餐": {tipang:1, pigjiao:1},
+  "H套餐": {dongpo:1, tipang:1, pigjiao:1},
+};
+const ITEM_NAMES = {
+  dongpo:"東坡肉", tipang:"醬燒蹄膀", pigjiao:"醬燒豬腳", sun:"香滷嫩筍"
+};
+const ITEM_ICONS = {
+  dongpo:"🍖", tipang:"🦵", pigjiao:"🐷", sun:"🎋"
+};
+
+let stockDateMode = "today";
+
+function setStockDate(mode, el) {
+  stockDateMode = mode;
+  document.querySelectorAll("#stockBlock .tab-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  const inp = document.getElementById("stock-date-input");
+  inp.style.display = mode === "custom" ? "inline-block" : "none";
+  if(mode !== "custom") renderStock();
+}
+
+function getStockTargetDate() {
+  const today = new Date();
+  if(stockDateMode === "today") return formatDate(today);
+  if(stockDateMode === "tomorrow") {
+    const t = new Date(today); t.setDate(t.getDate()+1);
+    return formatDate(t);
+  }
+  return document.getElementById("stock-date-input").value || formatDate(today);
+}
+
+function formatDate(d) {
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+function renderStock() {
+  const targetDate = getStockTargetDate();
+  if(!targetDate) return;
+
+  // 過濾：指定日期、未取消、未完成
+  const orders = allOrders.filter(o => {
+    if(["取消","已出貨","自取完成"].includes(o.shipStatus)) return false;
+    // 自取訂單：比對 pickupDate
+    const pd = String(o.pickupDate||"");
+    if(pd) {
+      // pickupDate 可能是 ISO 或 yyyy/MM/dd 格式
+      const pdClean = pd.includes("T") ? pd.split("T")[0] : pd.replace(/\//g,"-");
+      return pdClean === targetDate;
+    }
+    // 宅配/711：比對訂購時間
+    const t = String(o.time||"");
+    const tClean = t.includes("T") ? t.split("T")[0] : t.substring(0,10).replace(/\//g,"-");
+    return tClean === targetDate;
+  });
+
+  // 統計
+  const totals = {dongpo:0, tipang:0, pigjiao:0, sun:0};
+
+  orders.forEach(o => {
+    const detail = String(o.itemDetail||"");
+    if(!detail) return;
+    detail.split("；").forEach(line => {
+      // 格式：A套餐 x2，小計1120 或 東坡肉 x1，小計450
+      const m = line.match(/^(.+?)\s*x(\d+)/);
+      if(!m) return;
+      const name = m[1].trim();
+      const qty = parseInt(m[2]);
+      if(SET_DECOMPOSE[name]) {
+        Object.entries(SET_DECOMPOSE[name]).forEach(([k,v]) => totals[k] += v*qty);
+      } else {
+        // 單點
+        const key = Object.entries(ITEM_NAMES).find(([k,n]) => n===name)?.[0];
+        if(key) totals[key] += qty;
+      }
+    });
+  });
+
+  const total = Object.values(totals).reduce((s,v)=>s+v,0);
+  const dateDisp = targetDate.replace(/-/g,"/");
+  const label = stockDateMode==="today"?"今日":stockDateMode==="tomorrow"?"明日":dateDisp;
+
+  if(orders.length===0 || total===0) {
+    document.getElementById("stockResult").innerHTML=
+      '<div style="text-align:center;padding:20px;color:#6B7280;font-size:13px;">'+label+'（'+dateDisp+'）暫無備貨需求</div>';
+    return;
+  }
+
+  let html = '<div style="font-size:12px;color:#6B7280;margin-bottom:10px;">'+label+'（'+dateDisp+'）・共 '+orders.length+' 筆訂單</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  Object.entries(totals).forEach(([k,v]) => {
+    if(v===0) return;
+    html += '<div style="background:#FAF3E8;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;">'+
+      '<span style="font-size:24px;">'+ITEM_ICONS[k]+'</span>'+
+      '<div><div style="font-size:13px;color:#4A2C1A;font-weight:700;">'+ITEM_NAMES[k]+'</div>'+
+      '<div style="font-size:22px;font-weight:900;color:#C0392B;">'+v+' <span style="font-size:13px;font-weight:600;">份</span></div></div></div>';
+  });
+  html += '</div>';
+  document.getElementById("stockResult").innerHTML = html;
+}
 
 loadOrders();
 setInterval(loadOrders,60000);
