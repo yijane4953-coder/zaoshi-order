@@ -218,7 +218,7 @@ async function updateStatus(orderId,field,value,selectEl){
   try{
     const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId,field,value})});
     const d=await r.json();
-    if(d.success)showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
+    if(d.success){showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");renderAll();updateStats();}
     else showToast("⚠️ 更新失敗："+d.message);
   }catch(e){showToast("⚠️ 網路錯誤，請重試");}
 }
