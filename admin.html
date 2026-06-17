@@ -246,14 +246,26 @@ function renderCard(o){
 
 async function updateStatus(orderId,field,value,selectEl){
   updateSelectStyle(selectEl,field,value);
-  const order=allOrders.find(o=>o.orderId===orderId);
-  if(order)order[field]=value;
+  // 先更新本地資料
+  const order=allOrders.find(o=>String(o.orderId)===String(orderId));
+  console.log("找到訂單：",order?"是":"否","orderId=",orderId,"field=",field,"value=",value);
+  if(order){
+    order[field]=value;
+    console.log("更新後 shipStatus=",order.shipStatus,"payStatus=",order.payStatus);
+  }
+  // 立即重繪（不等 API 回應）
+  renderAll();
+  updateStats();
+  // 背景同步到 Sheet
   try{
-    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId,field,value})});
+    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId:String(orderId),field,value})});
     const d=await r.json();
-    if(d.success){showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");renderAll();updateStats();}
+    if(d.success) showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
     else showToast("⚠️ 更新失敗："+d.message);
-  }catch(e){showToast("⚠️ 網路錯誤，請重試");}
+  }catch(e){
+    console.error("更新失敗",e);
+    showToast("⚠️ 網路錯誤，請重試");
+  }
 }
 
 function updateSelectStyle(el,field,value){
