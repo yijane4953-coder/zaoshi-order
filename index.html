@@ -158,7 +158,7 @@ input.ef{border-color:var(--err);}
 <div class="form-card">
   <div class="form-sec-title">📋 訂購人資料</div>
   <div class="field"><label class="fl" for="name">姓名 <span class="req">*</span></label><input type="text" id="name" placeholder="請輸入姓名"><div class="errmsg" id="err-name">請填寫姓名</div></div>
-  <div class="field"><label class="fl" for="phone">電話 <span class="req">*</span></label><input type="tel" id="phone" placeholder="請輸入聯絡電話"><div class="errmsg" id="err-phone">請填寫電話</div></div>
+  <div class="field"><label class="fl" for="phone">電話 <span class="req">*</span></label><input type="tel" id="phone" placeholder="請輸入手機號碼（09開頭，共10碼）" maxlength="10"><div class="errmsg" id="err-phone">請填寫手機號碼（09開頭，共10碼）</div></div>
 </div>
 <div class="form-card">
   <div class="form-sec-title">🏪 取貨方式</div>
@@ -302,7 +302,7 @@ function validate(){
   const name=document.getElementById("name").value.trim();
   if(!name){showErr("err-name",true);markErr("name",true);ok=false;}else{showErr("err-name",false);markErr("name",false);}
   const phone=document.getElementById("phone").value.trim();
-  if(!phone){showErr("err-phone",true);markErr("phone",true);ok=false;}else{showErr("err-phone",false);markErr("phone",false);}
+  if(!/^09\d{8}$/.test(phone)){showErr("err-phone",true);markErr("phone",true);ok=false;}else{showErr("err-phone",false);markErr("phone",false);}
   const pickup=(document.querySelector('input[name="pickup"]:checked')||{}).value;
   if(!pickup){showErr("err-pickup",true);ok=false;}else showErr("err-pickup",false);
   if(pickup==="自取"&&!selectedDate){showErr("err-date",true);ok=false;}else showErr("err-date",false);
