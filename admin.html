@@ -137,6 +137,12 @@ async function loadOrders(){
     }
     if(d.success){
       allOrders=d.orders.reverse();
+      console.log("載入訂單數：", allOrders.length);
+      if(allOrders.length > 0){
+        console.log("第一筆訂單欄位：", JSON.stringify(allOrders[0]));
+        console.log("shipStatus值：", allOrders[0].shipStatus);
+        console.log("payStatus值：", allOrders[0].payStatus);
+      }
       console.log("✅ 載入成功，訂單數：", allOrders.length);
       renderAll();
       updateStats();
