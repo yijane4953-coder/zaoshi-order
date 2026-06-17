@@ -136,6 +136,7 @@ async function loadOrders(){
       return;
     }
     if(d.success){
+      document.getElementById("errorBox").style.display="none";
       allOrders=d.orders.reverse();
       console.log("載入訂單數：", allOrders.length);
       if(allOrders.length > 0){
