@@ -69,6 +69,9 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .ship-待處理{background:var(--gray-bg);border-color:#ccc;color:var(--gray);}
 .empty-state{text-align:center;padding:28px;color:var(--gray);font-size:13px;}
 .empty-state .icon{font-size:32px;display:block;margin-bottom:7px;}
+.error-box{margin:16px 14px;background:#fff0f0;border:2px solid #C0392B;border-radius:10px;padding:16px;font-size:13px;color:#8B1A1A;white-space:pre-wrap;line-height:1.6;display:none;}
+.error-box .err-title{font-size:15px;font-weight:800;margin-bottom:8px;}
+.error-box .err-url{font-size:11px;color:#888;word-break:break-all;margin-top:8px;padding-top:8px;border-top:1px solid #ecc;}
 .loading-overlay{position:fixed;inset:0;background:rgba(61,31,13,0.25);display:none;align-items:center;justify-content:center;z-index:999;}
 .loading-box{background:var(--white);border-radius:12px;padding:24px 32px;text-align:center;font-size:14px;font-weight:600;color:#8B1A1A;}
 .spinner{width:32px;height:32px;border:3px solid var(--cream-dark);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px;}
@@ -101,6 +104,11 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <button class="tab-btn" onclick="setFilter('unpaid',this)">待確認付款</button>
   <button class="tab-btn" onclick="setFilter('done',this)">已完成</button>
 </div>
+<div class="error-box" id="errorBox">
+  <div class="err-title">⚠️ 載入失敗</div>
+  <div id="errorMsg"></div>
+  <div class="err-url">API URL：<span id="errorUrl"></span></div>
+</div>
 <div id="orderSections"></div>
 <div class="bottom-pad"></div>
 
@@ -110,12 +118,37 @@ let allOrders=[],currentFilter="all";
 
 async function loadOrders(){
   showLoading(true);
+  document.getElementById("lastUpdate").textContent="載入中…";
+  console.log("🔄 開始載入訂單，URL：", SCRIPT_URL);
   try{
-    const r=await fetch(SCRIPT_URL+"?action=getOrders&t="+Date.now());
-    const d=await r.json();
-    if(d.success){allOrders=d.orders.reverse();renderAll();updateStats();document.getElementById("lastUpdate").textContent="更新："+new Date().toLocaleTimeString("zh-TW");}
-    else showToast("載入失敗："+d.message);
-  }catch(e){showToast("網路錯誤，請檢查設定");}
+    const url = SCRIPT_URL+"?action=getOrders&t="+Date.now();
+    console.log("📡 fetch URL：", url);
+    const r = await fetch(url);
+    console.log("📥 HTTP 狀態：", r.status, r.statusText);
+    const text = await r.text();
+    console.log("📄 回應內容：", text.substring(0,300));
+    let d;
+    try{ d = JSON.parse(text); }
+    catch(parseErr){
+      console.error("❌ JSON 解析失敗：", parseErr);
+      showError("回應格式錯誤，無法解析。請確認 Apps Script 部署設定。\n\n收到的內容：\n" + text.substring(0,200));
+      showLoading(false);
+      return;
+    }
+    if(d.success){
+      allOrders=d.orders.reverse();
+      console.log("✅ 載入成功，訂單數：", allOrders.length);
+      renderAll();
+      updateStats();
+      document.getElementById("lastUpdate").textContent="更新："+new Date().toLocaleTimeString("zh-TW");
+    } else {
+      console.error("❌ API 回傳失敗：", d.message);
+      showError("API 回傳錯誤：" + d.message);
+    }
+  }catch(e){
+    console.error("❌ fetch 失敗：", e);
+    showError("網路連線失敗：" + e.message + "\n\n請確認：\n1. Apps Script URL 是否正確\n2. 部署設定是否為「所有人可存取」");
+  }
   showLoading(false);
 }
 
@@ -237,6 +270,13 @@ function updateStats(){
   document.getElementById("stat-total").textContent=allOrders.length;
 }
 
+function showError(msg){
+  const box=document.getElementById("errorBox");
+  document.getElementById("errorMsg").textContent=msg;
+  document.getElementById("errorUrl").textContent=SCRIPT_URL;
+  box.style.display="block";
+  document.getElementById("lastUpdate").textContent="❌ 載入失敗";
+}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function showLoading(show){document.getElementById("loadingOverlay").style.display=show?"flex":"none";}
 function showToast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
