@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -332,6 +333,8 @@ function renderCard(o){
   // 金額顯示
   const totalDisp=o.total?("$"+Number(o.total).toLocaleString()):"—";
   const feeDisp=o.shippingFee!=null?(Number(o.shippingFee)===0?"免運":"$"+Number(o.shippingFee)):"—";
+  const subAmt=(o.total!=null&&o.shippingFee!=null)?Number(o.total)-Number(o.shippingFee):null;
+  const subDisp=subAmt!=null?("$"+subAmt.toLocaleString()):"—";
 
   // 地址/門市
   let locationRow="";
@@ -355,7 +358,9 @@ function renderCard(o){
       '<div class="info-item"><span class="key">姓名</span><span class="val">'+esc(o.name)+'</span></div>'+
       '<div class="info-item"><span class="key">電話</span><span class="val">'+(String(o.phone||'').length===9?'0'+o.phone:String(o.phone||''))+'</span></div>'+
       '<div class="info-item"><span class="key">訂單總計</span><span class="val big">'+totalDisp+'</span></div>'+
-      '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+' / 運費'+feeDisp+'</span></div>'+
+      '<div class="info-item"><span class="key">商品小計</span><span class="val">'+subDisp+'</span></div>'+
+      '<div class="info-item"><span class="key">運費</span><span class="val">'+feeDisp+'</span></div>'+
+      '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+'</span></div>'+
       locationRow+
       detailRow+
     '</div>'+
