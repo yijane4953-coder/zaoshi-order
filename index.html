@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -418,11 +419,15 @@ async function loadBlockedDates(){
   try{
     const resp=await fetch(SCRIPT_URL+"?action=getBlockedDates");
     const result=await resp.json();
+    console.log("=== 不可取日 API 回傳 ===", JSON.stringify(result));
     if(result.success && Array.isArray(result.blockedDates)){
       blockedDates=result.blockedDates;
+      console.log("前台取得不可取日：", blockedDates);
+    } else {
+      console.warn("不可取日 API 回傳異常：", result);
     }
   }catch(e){
-    console.warn("無法載入不可取日，預設全部可取");
+    console.warn("無法載入不可取日，預設全部可取", e);
   }
 }
 
@@ -442,6 +447,10 @@ function onDateChange(){
     document.getElementById("err-date").classList.remove("show");
     // 轉換格式比對：input 是 yyyy-MM-dd，Sheet 是 yyyy/MM/dd
     const dateSlash=selectedDate.replace(/-/g,"/");
+    console.log("使用者選擇日期(原始)：", selectedDate);
+    console.log("使用者選擇日期(轉換後)：", dateSlash);
+    console.log("目前不可取日陣列：", blockedDates);
+    console.log("是否為不可取日：", blockedDates.includes(dateSlash));
     if(blockedDates.includes(dateSlash)){
       msgEl.classList.add("show");
     } else {
