@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -117,15 +118,15 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 </div>
 <div class="stats-row">
   <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
-  <div class="stat-card"><div class="num" id="stat-unpaid">—</div><div class="lbl">待確認付款</div></div>
-  <div class="stat-card"><div class="num" id="stat-ship">—</div><div class="lbl">待出貨</div></div>
-  <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">總訂單數</div></div>
+  <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">待出貨</div></div>
+  <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
+  <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日營收</div></div>
 </div>
 <div class="stats-row-2">
-  <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
-  <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">未完成</div></div>
   <div class="stat-card"><div class="num" id="stat-today-pickup">—</div><div class="lbl">今日自取</div></div>
   <div class="stat-card"><div class="num" id="stat-today-delivery">—</div><div class="lbl">今日宅配</div></div>
+  <div class="stat-card"><div class="num" id="stat-today-711">—</div><div class="lbl">今日7-11</div></div>
+  <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">總訂單數</div></div>
 </div>
 <div class="search-bar">
   <input class="search-input" id="searchInput" type="text" placeholder="搜尋姓名或手機號碼…" oninput="onSearchInput()">
@@ -411,14 +412,18 @@ function updateSelectStyle(el,field,value){
 function updateStats(){
   const ymd=getTodayYMD();
   const doneStat=["已出貨","自取完成","取消"];
-  document.getElementById("stat-today").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)).length;
-  document.getElementById("stat-unpaid").textContent=allOrders.filter(o=>o.payStatus==="待確認").length;
-  document.getElementById("stat-ship").textContent=allOrders.filter(o=>o.shipStatus==="待出貨").length;
-  document.getElementById("stat-total").textContent=allOrders.length;
-  document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
+  const todayOrders=allOrders.filter(o=>String(o.time).startsWith(ymd));
+  // 第一排
+  document.getElementById("stat-today").textContent=todayOrders.length;
   document.getElementById("stat-undone").textContent=allOrders.filter(o=>!doneStat.includes(o.shipStatus)).length;
-  document.getElementById("stat-today-pickup").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)&&String(o.pickup).startsWith("自取")).length;
-  document.getElementById("stat-today-delivery").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)&&(String(o.pickup).startsWith("宅配")||String(o.pickup).startsWith("7-11"))).length;
+  document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
+  const revenue=todayOrders.reduce((s,o)=>s+(Number(o.total)||0),0);
+  document.getElementById("stat-revenue").textContent="$"+revenue.toLocaleString();
+  // 第二排
+  document.getElementById("stat-today-pickup").textContent=todayOrders.filter(o=>String(o.pickup).startsWith("自取")).length;
+  document.getElementById("stat-today-delivery").textContent=todayOrders.filter(o=>String(o.pickup).startsWith("宅配")).length;
+  document.getElementById("stat-today-711").textContent=todayOrders.filter(o=>String(o.pickup).startsWith("7-11")).length;
+  document.getElementById("stat-total").textContent=allOrders.length;
 }
 
 function showError(msg){
