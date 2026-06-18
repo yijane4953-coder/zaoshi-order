@@ -5,7 +5,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>灶囍（東坡肉、蹄膀、豬腳）專賣店｜線上訂購</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -107,7 +107,7 @@ input.ef{border-color:var(--err);}
 .cart-total strong{display:block;font-size:22px;font-weight:900;color:var(--red);line-height:1.1;}
 .cart-total strong::before{content:"$";}
 .cart-total .sub-note{font-size:11px;color:var(--ink-muted);margin-top:1px;}
-.btn-checkout{flex-shrink:0;padding:12px 22px;background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;font-size:14px;font-weight:800;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(139,26,26,0.35);-webkit-tap-highlight-color:transparent;}
+.btn-checkout{flex-shrink:0;padding:12px 22px;background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;font-size:14px;font-weight:800;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(139,26,26,0.35);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .btn-checkout:disabled{opacity:.4;cursor:not-allowed;}.cart-sub{font-size:11px;color:var(--ink-muted);margin-top:1px;}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(92,15,15,0.5);z-index:200;align-items:flex-end;justify-content:center;}
 .modal-bg.open{display:flex;}
@@ -131,6 +131,11 @@ input.ef{border-color:var(--err);}
 .success-screen p{font-size:13px;color:var(--ink-muted);line-height:1.8;}
 .order-id-box{margin:16px auto;background:var(--paper-dark);border-radius:10px;padding:12px 20px;font-size:20px;font-weight:900;color:var(--red-dark);letter-spacing:3px;display:inline-block;}
 .btn-again{margin-top:18px;padding:12px 30px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* 禁止所有可點擊元素雙擊縮放 */
+button, label, select, input[type=radio], .toggle-group label, .cal-day.available {
+  touch-action: manipulation;
+}
 </style>
 </head>
 <body>
