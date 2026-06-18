@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -21,7 +22,8 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .btn-refresh{padding:7px 16px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;font-size:13px;cursor:pointer;}
 .last-update{color:rgba(255,255,255,0.6);font-size:11px;margin-top:2px;}
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px 0;}
-@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stats-row-2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 14px 0;}
+@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}.stats-row-2{grid-template-columns:repeat(2,1fr);}}
 .stat-card{background:var(--white);border-radius:var(--radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
 .stat-card .num{font-size:28px;font-weight:900;color:#8B1A1A;line-height:1;}
 .stat-card .lbl{font-size:10px;color:var(--gray);margin-top:3px;letter-spacing:1px;}
@@ -57,6 +59,20 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .status-group label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--gray);display:block;margin-bottom:4px;}
 .status-select{width:100%;padding:8px 10px;border-radius:6px;border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text);background:var(--cream);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
 .status-select:focus{outline:none;border-color:var(--gold);}
+.pay-unpaid{background:#fff8e1;border-color:#f0ad00;color:#7d6000;}
+.pay-paid{background:#e8f5e9;border-color:#388e3c;color:#2e7d32;}
+.pay-cash-pending{background:#fff3e0;border-color:#ef6c00;color:#bf360c;}
+.pay-cash-done{background:#e8f5e9;border-color:#388e3c;color:#2e7d32;}
+.ship-pending{background:#f5f5f5;border-color:#bdbdbd;color:#616161;}
+.ship-wait{background:#e3f2fd;border-color:#1976d2;color:#1565c0;}
+.ship-sent{background:#e8f5e9;border-color:#388e3c;color:#2e7d32;}
+.ship-pickup-wait{background:#fff3e0;border-color:#ef6c00;color:#bf360c;}
+.ship-pickup-done{background:#e8f5e9;border-color:#388e3c;color:#2e7d32;}
+.ship-cancel{background:#fce4ec;border-color:#d32f2f;color:#c62828;}
+.pickup-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-bottom:5px;}
+.pickup-badge.self{background:#fff3e0;color:#bf360c;}
+.pickup-badge.delivery{background:#e3f2fd;color:#1565c0;}
+.pickup-badge.s711{background:#e8f5e9;color:#1b5e20;}
 .pay-待確認{background:#FEF9E7;border-color:#F0C040;color:#7A5C00;}
 .pay-已付款{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
 .pay-現金未收{background:var(--orange-bg);border-color:#D4840A;color:var(--orange);}
@@ -94,6 +110,12 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <div class="stat-card"><div class="num" id="stat-unpaid">—</div><div class="lbl">待確認付款</div></div>
   <div class="stat-card"><div class="num" id="stat-ship">—</div><div class="lbl">待出貨</div></div>
   <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">總訂單數</div></div>
+</div>
+<div class="stats-row-2">
+  <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
+  <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">未完成</div></div>
+  <div class="stat-card"><div class="num" id="stat-today-pickup">—</div><div class="lbl">今日自取</div></div>
+  <div class="stat-card"><div class="num" id="stat-today-delivery">—</div><div class="lbl">今日宅配</div></div>
 </div>
 <div class="filter-tabs">
   <button class="tab-btn active" onclick="setFilter('all',this)">全部</button>
@@ -222,6 +244,28 @@ function renderSection(title,orders){
     '</div>';
 }
 
+function getPayClass(s){
+  if(s==="待確認") return "pay-unpaid";
+  if(s==="已付款") return "pay-paid";
+  if(s==="現金未收") return "pay-cash-pending";
+  if(s==="已收現金") return "pay-cash-done";
+  return "";
+}
+function getShipClass(s){
+  if(s==="待處理") return "ship-pending";
+  if(s==="待出貨") return "ship-wait";
+  if(s==="已出貨") return "ship-sent";
+  if(s==="待自取") return "ship-pickup-wait";
+  if(s==="自取完成") return "ship-pickup-done";
+  if(s==="取消") return "ship-cancel";
+  return "";
+}
+function getPickupBadge(pickupStr){
+  if(pickupStr.startsWith("自取")) return '<span class="pickup-badge self">🏠 自取</span>';
+  if(pickupStr.startsWith("宅配")) return '<span class="pickup-badge delivery">🚛 宅配</span>';
+  if(pickupStr.startsWith("7-11")) return '<span class="pickup-badge s711">🏪 7-11</span>';
+  return '';
+}
 function renderCard(o){
   const pickupStr=String(o.pickup||"");
   const isDelivery=pickupStr.startsWith("宅配");
@@ -231,8 +275,8 @@ function renderCard(o){
   const cardClass=isDone?"done":isDelivery?"delivery":is711?"pickup-711":"pickup-store";
   const badgeClass=isDelivery?"delivery":is711?"s711":"self";
   const badgeText=isDelivery?"🚛 低溫宅配":is711?"🏪 7-11店到店":"🏠 自取";
-  const payClass="pay-"+(o.payStatus||"").replace(/\s/g,"");
-  const shipClass="ship-"+(o.shipStatus||"").replace(/\s/g,"");
+  const payClass=getPayClass(o.payStatus);
+  const shipClass=getShipClass(o.shipStatus);
 
   // 金額顯示
   const totalDisp=o.total?("$"+Number(o.total).toLocaleString()):"—";
@@ -308,10 +352,15 @@ function updateSelectStyle(el,field,value){
 
 function updateStats(){
   const ymd=getTodayYMD();
+  const doneStat=["已出貨","自取完成","取消"];
   document.getElementById("stat-today").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)).length;
   document.getElementById("stat-unpaid").textContent=allOrders.filter(o=>o.payStatus==="待確認").length;
   document.getElementById("stat-ship").textContent=allOrders.filter(o=>o.shipStatus==="待出貨").length;
   document.getElementById("stat-total").textContent=allOrders.length;
+  document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
+  document.getElementById("stat-undone").textContent=allOrders.filter(o=>!doneStat.includes(o.shipStatus)).length;
+  document.getElementById("stat-today-pickup").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)&&String(o.pickup).startsWith("自取")).length;
+  document.getElementById("stat-today-delivery").textContent=allOrders.filter(o=>String(o.time).startsWith(ymd)&&(String(o.pickup).startsWith("宅配")||String(o.pickup).startsWith("7-11"))).length;
 }
 
 function showError(msg){
