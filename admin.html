@@ -257,9 +257,11 @@ function renderAll(){
   const container=document.getElementById("orderSections");
   // 搜尋過濾
   const kw=searchKeyword.toLowerCase();
+  const kwPhone=kw.startsWith("0")?kw.slice(1):kw;
   const baseOrders=kw?allOrders.filter(o=>
     String(o.name||"").toLowerCase().includes(kw)||
-    String(o.phone||"").includes(kw)
+    String(o.phone||"").includes(kw)||
+    String(o.phone||"").includes(kwPhone)
   ):allOrders;
   if(kw){
     const hint=document.getElementById("searchHint");
@@ -351,7 +353,7 @@ function renderCard(o){
     '<div class="card-header"><div><div class="order-id"># '+esc(o.orderId)+'</div><div class="order-time">'+esc(String(o.time))+'</div></div><span class="pickup-badge '+badgeClass+'">'+badgeText+'</span></div>'+
     '<div class="card-main">'+
       '<div class="info-item"><span class="key">姓名</span><span class="val">'+esc(o.name)+'</span></div>'+
-      '<div class="info-item"><span class="key">電話</span><span class="val">'+esc(o.phone)+'</span></div>'+
+      '<div class="info-item"><span class="key">電話</span><span class="val">'+(String(o.phone||'').length===9?'0'+o.phone:String(o.phone||''))+'</span></div>'+
       '<div class="info-item"><span class="key">訂單總計</span><span class="val big">'+totalDisp+'</span></div>'+
       '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+' / 運費'+feeDisp+'</span></div>'+
       locationRow+
