@@ -49,7 +49,7 @@ body{background:var(--paper);color:var(--ink);font-family:-apple-system,"Noto Sa
 .item-price{font-size:16px;font-weight:900;color:var(--red);white-space:nowrap;min-width:46px;text-align:right;}
 .item-price::before{content:"$";font-size:10px;vertical-align:super;}
 .qty-ctrl{display:flex;align-items:center;flex-shrink:0;}
-.qty-btn{width:32px;height:32px;border:1.5px solid var(--border);background:var(--paper);color:var(--ink-soft);font-size:18px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .12s;line-height:1;}
+.qty-btn{width:32px;height:32px;border:1.5px solid var(--border);background:var(--paper);color:var(--ink-soft);font-size:18px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;transition:background .12s;line-height:1;}
 .qty-btn:first-child{border-radius:6px 0 0 6px;}.qty-btn:last-child{border-radius:0 6px 6px 0;}
 .qty-btn:active{background:var(--paper-dark);}
 .qty-num{width:34px;height:32px;border-top:1.5px solid var(--border);border-bottom:1.5px solid var(--border);background:var(--white);text-align:center;font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;justify-content:center;}
@@ -107,7 +107,7 @@ input.ef{border-color:var(--err);}
 .cart-total strong{display:block;font-size:22px;font-weight:900;color:var(--red);line-height:1.1;}
 .cart-total strong::before{content:"$";}
 .cart-total .sub-note{font-size:11px;color:var(--ink-muted);margin-top:1px;}
-.btn-checkout{flex-shrink:0;padding:12px 22px;background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;font-size:14px;font-weight:800;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(139,26,26,0.35);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.btn-checkout{flex-shrink:0;padding:12px 22px;background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;font-size:14px;font-weight:800;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(139,26,26,0.35);-webkit-tap-highlight-color:transparent;}
 .btn-checkout:disabled{opacity:.4;cursor:not-allowed;}.cart-sub{font-size:11px;color:var(--ink-muted);margin-top:1px;}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(92,15,15,0.5);z-index:200;align-items:flex-end;justify-content:center;}
 .modal-bg.open{display:flex;}
@@ -132,10 +132,7 @@ input.ef{border-color:var(--err);}
 .order-id-box{margin:16px auto;background:var(--paper-dark);border-radius:10px;padding:12px 20px;font-size:20px;font-weight:900;color:var(--red-dark);letter-spacing:3px;display:inline-block;}
 .btn-again{margin-top:18px;padding:12px 30px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
 
-/* 禁止所有可點擊元素雙擊縮放 */
-button, label, select, input[type=radio], .toggle-group label, .cal-day.available {
-  touch-action: manipulation;
-}
+button,label,select{touch-action:manipulation;-webkit-user-select:none;user-select:none;}
 </style>
 </head>
 <body>
@@ -584,6 +581,18 @@ function resetAll(){
   document.getElementById("successScreen").style.display="none";window.scrollTo(0,0);
 }
 initDateInput();updateTotal();initProductImages();initCitySelect();
+
+// 禁止雙擊縮放
+(function(){
+  var lastTap=0;
+  document.addEventListener('touchend',function(e){
+    var now=Date.now();
+    if(now-lastTap<300){
+      e.preventDefault();
+    }
+    lastTap=now;
+  },{passive:false});
+})();
 </script>
 </body>
 </html>
