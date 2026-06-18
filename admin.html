@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -27,6 +28,13 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .stat-card{background:var(--white);border-radius:var(--radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
 .stat-card .num{font-size:28px;font-weight:900;color:#8B1A1A;line-height:1;}
 .stat-card .lbl{font-size:10px;color:var(--gray);margin-top:3px;letter-spacing:1px;}
+
+.search-bar{padding:10px 14px 0;position:relative;}
+.search-input{width:100%;padding:10px 36px 10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;color:var(--dark);background:#fff;outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:#8B1A1A;}
+.search-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;display:none;padding:4px;}
+.search-clear.show{display:block;}
+.search-hint{font-size:11px;color:#aaa;padding:4px 14px 0;}
 .filter-tabs{padding:12px 14px 0;display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .filter-tabs::-webkit-scrollbar{display:none;}
 .tab-btn{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;white-space:nowrap;transition:all .15s;}
@@ -117,6 +125,11 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <div class="stat-card"><div class="num" id="stat-today-pickup">—</div><div class="lbl">今日自取</div></div>
   <div class="stat-card"><div class="num" id="stat-today-delivery">—</div><div class="lbl">今日宅配</div></div>
 </div>
+<div class="search-bar">
+  <input class="search-input" id="searchInput" type="text" placeholder="搜尋姓名或手機號碼…" oninput="onSearchInput()">
+  <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+</div>
+<div class="search-hint" id="searchHint" style="display:none"></div>
 <div class="filter-tabs">
   <button class="tab-btn active" onclick="setFilter('all',this)">全部</button>
   <button class="tab-btn" onclick="setFilter('today',this)">今日訂單</button>
@@ -154,6 +167,7 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 <script>
 const SCRIPT_URL="https://script.google.com/macros/s/AKfycbxR9NjivKPDVCoEhmS6H4NNZe91cTo1HtoEqVs0zuC3RbKJv1mxOz4gJZ2tDyObc0MJ/exec";
 let allOrders=[],currentFilter="all";
+let searchKeyword="";
 
 async function loadOrders(){
   showLoading(true);
@@ -199,6 +213,29 @@ async function loadOrders(){
   showLoading(false);
 }
 
+
+function onSearchInput(){
+  const val=document.getElementById("searchInput").value.trim();
+  searchKeyword=val;
+  const clearBtn=document.getElementById("searchClear");
+  clearBtn.classList.toggle("show", val.length>0);
+  const hint=document.getElementById("searchHint");
+  if(val.length>0){
+    hint.style.display="block";
+    hint.textContent="搜尋「"+val+"」中…";
+  } else {
+    hint.style.display="none";
+  }
+  renderAll();
+}
+
+function clearSearch(){
+  document.getElementById("searchInput").value="";
+  searchKeyword="";
+  document.getElementById("searchClear").classList.remove("show");
+  document.getElementById("searchHint").style.display="none";
+  renderAll();
+}
 function setFilter(f,el){currentFilter=f;document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));el.classList.add("active");renderAll();}
 
 function getTodayYMD(){const t=new Date();return t.getFullYear()+"/"+String(t.getMonth()+1).padStart(2,"0")+"/"+String(t.getDate()).padStart(2,"0");}
@@ -218,6 +255,18 @@ function filterOrders(orders){
 
 function renderAll(){
   const container=document.getElementById("orderSections");
+  // 搜尋過濾
+  const kw=searchKeyword.toLowerCase();
+  const baseOrders=kw?allOrders.filter(o=>
+    String(o.name||"").toLowerCase().includes(kw)||
+    String(o.phone||"").includes(kw)
+  ):allOrders;
+  if(kw){
+    const hint=document.getElementById("searchHint");
+    if(hint) hint.textContent="找到 "+baseOrders.length+" 筆（搜尋：「"+searchKeyword+"」）";
+    container.innerHTML=renderSection("🔍 搜尋結果",baseOrders);
+    return;
+  }
   if(currentFilter==="all"){
     const ymd=getTodayYMD();
     const todayPending=allOrders.filter(o=>String(o.time).startsWith(ymd)&&!["已出貨","自取完成","取消"].includes(o.shipStatus));
