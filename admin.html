@@ -28,8 +28,15 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .btn-refresh{padding:7px 16px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;font-size:13px;cursor:pointer;}
 .last-update{color:rgba(255,255,255,0.6);font-size:11px;margin-top:2px;}
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px 0;}
-.stats-row-2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 14px 0;}
-@media(max-width:640px){.stats-row{grid-template-columns:repeat(2,1fr);}.stats-row-2{grid-template-columns:repeat(2,1fr);}}
+.stats-row-2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 14px 0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;}
+.stats-toggle{display:none;width:calc(100% - 28px);margin:6px 14px 0;padding:6px;background:none;border:none;color:var(--gray);font-size:11px;font-weight:600;cursor:pointer;text-align:center;}
+@media(max-width:640px){
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .stats-row-2{grid-template-columns:repeat(2,1fr);}
+  .stats-toggle{display:block;}
+  .stats-row-2.collapsed{max-height:0;opacity:0;padding-top:0;}
+  .stats-row-2:not(.collapsed){max-height:200px;opacity:1;}
+}
 .stat-card{background:var(--white);border-radius:var(--radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
 .stat-card .num{font-size:28px;font-weight:900;color:#8B1A1A;line-height:1;}
 .stat-card .lbl{font-size:10px;color:var(--gray);margin-top:3px;letter-spacing:1px;}
@@ -112,8 +119,8 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .ship-自取完成{background:var(--green-bg);border-color:#5BAD3A;color:var(--green);}
 .ship-取消{background:var(--red-bg);border-color:#D14040;color:var(--red);}
 .ship-待處理{background:var(--gray-bg);border-color:#ccc;color:var(--gray);}
-.empty-state{text-align:center;padding:28px;color:var(--gray);font-size:13px;}
-.empty-state .icon{font-size:32px;display:block;margin-bottom:7px;}
+.empty-state{text-align:center;padding:10px 16px;color:var(--gray);font-size:12px;}
+.empty-state .icon{font-size:16px;display:inline;margin-right:4px;}
 .error-box{margin:16px 14px;background:#fff0f0;border:2px solid #C0392B;border-radius:10px;padding:16px;font-size:13px;color:#8B1A1A;white-space:pre-wrap;line-height:1.6;display:none;}
 .error-box .err-title{font-size:15px;font-weight:800;margin-bottom:8px;}
 .error-box .err-url{font-size:11px;color:#888;word-break:break-all;margin-top:8px;padding-top:8px;border-top:1px solid #ecc;}
@@ -135,12 +142,13 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <button class="btn-refresh" onclick="loadOrders()">🔄 重新整理</button>
 </div>
 <div class="stats-row">
-  <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
   <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">待出貨</div></div>
   <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
   <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日營收</div></div>
+  <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
 </div>
-<div class="stats-row-2">
+<button class="stats-toggle" id="statsToggleBtn" onclick="toggleStats2()">次要數據 ▾</button>
+<div class="stats-row-2" id="statsRow2">
   <div class="stat-card"><div class="num" id="stat-today-pickup">—</div><div class="lbl">今日自取</div></div>
   <div class="stat-card"><div class="num" id="stat-today-delivery">—</div><div class="lbl">今日宅配</div></div>
   <div class="stat-card"><div class="num" id="stat-today-711">—</div><div class="lbl">今日7-11</div></div>
@@ -256,6 +264,20 @@ function clearSearch(){
   document.getElementById("searchClear").classList.remove("show");
   document.getElementById("searchHint").style.display="none";
   renderAll();
+}
+function toggleStats2(){
+  const row=document.getElementById("statsRow2");
+  const btn=document.getElementById("statsToggleBtn");
+  const collapsed=row.classList.toggle("collapsed");
+  btn.textContent=collapsed?"次要數據 ▸":"次要數據 ▾";
+}
+// 手機版預設收合次要統計（僅影響 ≤640px，桌機版按鈕本身已隱藏不受影響）
+if(window.matchMedia("(max-width:640px)").matches){
+  document.addEventListener("DOMContentLoaded",function(){
+    const row=document.getElementById("statsRow2");
+    const btn=document.getElementById("statsToggleBtn");
+    if(row&&btn){ row.classList.add("collapsed"); btn.textContent="次要數據 ▸"; }
+  });
 }
 function setFilter(f,el){currentFilter=f;document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));el.classList.add("active");renderAll();}
 
