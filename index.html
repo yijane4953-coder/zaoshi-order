@@ -32,8 +32,10 @@ body{background:var(--paper);color:var(--ink);font-family:-apple-system,"Noto Sa
 .phone-strip a::before{content:"📞 ";}
 .shipping-notice{margin:14px 14px 0;background:#fff8e1;border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:11px 13px;}
 .shipping-notice .sn-title{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:2px;margin-bottom:7px;}
-.shipping-row{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink-soft);margin-bottom:4px;line-height:1.5;}
-.shipping-row:last-child{margin-bottom:0;}.shipping-row .icon{flex-shrink:0;font-size:14px;}
+.shipping-row{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink-soft);margin-bottom:8px;line-height:1.5;}
+.shipping-row:last-child{margin-bottom:0;}.shipping-row .icon{flex-shrink:0;font-size:14px;margin-top:1px;}
+.sn-highlight{font-size:13px;font-weight:800;color:var(--red-dark);display:inline-block;margin-bottom:2px;}
+.sn-sub{font-size:11px;font-weight:400;color:var(--ink-muted);}
 .shipping-row strong{color:var(--red-dark);}
 .menu-section{margin:16px 14px 0;}
 .menu-section-title{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
@@ -158,10 +160,19 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
   </div>
 </div>
 <div class="shipping-notice">
-  <div class="sn-title">🚚 運費說明</div>
-  <div class="shipping-row"><span class="icon">🔴</span><span>單筆 <strong>滿 $3,000 免運</strong>（限單地點、限20kg）</span></div>
-  <div class="shipping-row"><span class="icon">🚛</span><span><strong>宅配通低溫宅配 $200</strong>（限20kg，超過需寄第二件）</span></div>
-  <div class="shipping-row"><span class="icon">🏪</span><span><strong>7-11 店到店 $150</strong>（限10kg，超過需寄第二件）</span></div>
+  <div class="sn-title">🚛 運費說明</div>
+  <div class="shipping-row">
+    <span class="icon">🔴</span>
+    <span><strong class="sn-highlight">滿 $3,000 免運</strong><br><span class="sn-sub">限單一地點，且宅配 20kg 內／7-11 店到店 10kg 內。</span></span>
+  </div>
+  <div class="shipping-row">
+    <span class="icon">🚚</span>
+    <span><strong class="sn-highlight">宅配通低溫宅配：$200／件</strong><br><span class="sn-sub">每件限 20kg，超過需加寄一件。</span></span>
+  </div>
+  <div class="shipping-row">
+    <span class="icon">🏪</span>
+    <span><strong class="sn-highlight">7-11 店到店：$150／件</strong><br><span class="sn-sub">每件限 10kg，超過需加寄一件。</span></span>
+  </div>
 </div>
 <div id="mainScreen">
 <div class="menu-section">
