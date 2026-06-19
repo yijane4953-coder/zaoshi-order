@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -44,6 +45,8 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .tab-btn{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;white-space:nowrap;transition:all .15s;}
 .tab-btn.active{background:#8B1A1A;border-color:#8B1A1A;color:#fff;}
 .section-block{margin:12px 14px 0;}
+.history-date-group{margin:12px 14px 0;}
+.history-date-label{font-size:12px;font-weight:700;color:var(--gray);padding:4px 0 6px;border-bottom:1.5px dashed var(--border);margin-bottom:8px;}
 .section-header{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
 .section-header h2{font-size:14px;font-weight:800;color:#8B1A1A;}
 .count-badge{background:var(--gold);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center;}
@@ -60,6 +63,14 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .pickup-badge.self{background:var(--orange-bg);color:var(--orange);}
 .pickup-badge.s711{background:var(--green-bg);color:var(--green);}
 .card-main{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-bottom:11px;}
+.card-priority{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--cream-dark);}
+.card-priority .info-item .val{font-size:15px;}
+.card-status-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.mini-status-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:14px;border:1.5px solid transparent;}
+.card-main-secondary{opacity:.85;}
+.card-main-secondary .info-item .key{font-size:9px;}
+.card-main-secondary .info-item .val{font-size:12px;}
+.card-main-secondary .info-item .val.big{font-size:15px;}
 .info-item{display:flex;flex-direction:column;}
 .info-item .key{font-size:10px;color:var(--gray);letter-spacing:1px;font-weight:600;margin-bottom:1px;}
 .info-item .val{font-size:14px;font-weight:700;color:var(--text);}
@@ -67,6 +78,12 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 .info-item .val.big{font-size:19px;color:#8B1A1A;}
 .info-item .val.sm{font-size:12px;font-weight:500;color:var(--gray);}
 .card-footer{border-top:1px solid var(--cream-dark);padding-top:11px;display:flex;gap:9px;flex-wrap:wrap;}
+@media (max-width:480px){
+  .card-footer{gap:12px;}
+  .status-group{min-width:100%;}
+  .status-select{padding:11px 10px;font-size:14px;}
+  .card-priority{grid-template-columns:1fr;}
+}
 .status-group{flex:1;min-width:130px;}
 .status-group label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--gray);display:block;margin-bottom:4px;}
 .status-select{width:100%;padding:8px 10px;border-radius:6px;border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text);background:var(--cream);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
@@ -141,7 +158,7 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <button class="tab-btn" onclick="setFilter('711-pending',this)">711待出貨</button>
   <button class="tab-btn" onclick="setFilter('pickup-pending',this)">自取待領</button>
   <button class="tab-btn" onclick="setFilter('unpaid',this)">待確認付款</button>
-  <button class="tab-btn" onclick="setFilter('done',this)">已完成</button>
+  <button class="tab-btn" onclick="setFilter('done',this)">📋 歷史訂單</button>
 </div>
 <div class="error-box" id="errorBox" style="display:none">
   <div class="err-title">⚠️ 載入失敗</div>
@@ -279,16 +296,17 @@ function renderAll(){
     const delivPending=allOrders.filter(o=>String(o.pickup).startsWith("宅配")&&o.shipStatus==="待出貨");
     const s711Pending=allOrders.filter(o=>String(o.pickup).startsWith("7-11")&&o.shipStatus==="待出貨");
     const pickPending=allOrders.filter(o=>String(o.pickup).startsWith("自取")&&o.shipStatus==="待自取");
-    const done=allOrders.filter(o=>["已出貨","自取完成","取消"].includes(o.shipStatus));
     container.innerHTML=[
       renderSection("📅 今日待處理",todayPending),
       renderSection("🚛 宅配待出貨",delivPending),
       renderSection("🏪 7-11待出貨",s711Pending),
-      renderSection("🏠 自取待領",pickPending),
-      renderSection("✅ 已完成",done)
+      renderSection("🏠 自取待領",pickPending)
     ].join("");
+  }else if(currentFilter==="done"){
+    const done=allOrders.filter(o=>["已出貨","自取完成","取消"].includes(o.shipStatus));
+    container.innerHTML=renderHistorySection(done);
   }else{
-    const titles={"today":"📅 今日訂單","delivery-pending":"🚛 宅配待出貨","711-pending":"🏪 7-11待出貨","pickup-pending":"🏠 自取待領","unpaid":"💳 待確認付款","done":"✅ 已完成"};
+    const titles={"today":"📅 今日訂單","delivery-pending":"🚛 宅配待出貨","711-pending":"🏪 7-11待出貨","pickup-pending":"🏠 自取待領","unpaid":"💳 待確認付款"};
     container.innerHTML=renderSection(titles[currentFilter]||"訂單列表",filterOrders(allOrders));
   }
 }
@@ -297,6 +315,27 @@ function renderSection(title,orders){
   return '<div class="section-block"><div class="section-header"><h2>'+title+'</h2><span class="count-badge">'+orders.length+'</span></div>'+
     (orders.length===0?'<div class="empty-state"><span class="icon">🎉</span>目前沒有訂單</div>':orders.map(renderCard).join(""))+
     '</div>';
+}
+function renderHistorySection(orders){
+  if(orders.length===0){
+    return '<div class="section-block"><div class="section-header"><h2>📋 歷史訂單</h2><span class="count-badge">0</span></div>'+
+      '<div class="empty-state"><span class="icon">📭</span>目前沒有歷史訂單</div></div>';
+  }
+  // 依日期分組（新到舊）
+  const groups={};
+  orders.forEach(o=>{
+    const d=String(o.time||"").slice(0,10)||"未知日期";
+    if(!groups[d]) groups[d]=[];
+    groups[d].push(o);
+  });
+  const dates=Object.keys(groups).sort().reverse();
+  return '<div class="section-block"><div class="section-header"><h2>📋 歷史訂單</h2><span class="count-badge">'+orders.length+'</span></div></div>'+
+    dates.map(d=>
+      '<div class="history-date-group">'+
+        '<div class="history-date-label">'+d+'　('+groups[d].length+' 筆)</div>'+
+        groups[d].map(renderCard).join("")+
+      '</div>'
+    ).join("");
 }
 
 function getPayClass(s){
@@ -358,15 +397,21 @@ function renderCard(o){
 
   return '<div class="order-card '+cardClass+'" id="card-'+o.orderId+'">'+
     '<div class="card-header"><div><div class="order-id"># '+esc(o.orderId)+'</div><div class="order-time">'+esc(String(o.time))+'</div></div><span class="pickup-badge '+badgeClass+'">'+badgeText+'</span></div>'+
-    '<div class="card-main">'+
+    '<div class="card-priority">'+
       '<div class="info-item"><span class="key">姓名</span><span class="val">'+esc(o.name)+'</span></div>'+
       '<div class="info-item"><span class="key">電話</span><span class="val">'+(String(o.phone||'').length===9?'0'+o.phone:String(o.phone||''))+'</span></div>'+
+      locationRow+
+    '</div>'+
+    '<div class="card-status-row">'+
+      '<span class="mini-status-badge '+payClass+'">💳 '+esc(o.payStatus||'—')+'</span>'+
+      '<span class="mini-status-badge '+shipClass+'">🚚 '+esc(o.shipStatus||'—')+'</span>'+
+    '</div>'+
+    detailRow+
+    '<div class="card-main card-main-secondary">'+
       '<div class="info-item"><span class="key">訂單總計</span><span class="val big">'+totalDisp+'</span></div>'+
       '<div class="info-item"><span class="key">商品小計</span><span class="val">'+subDisp+'</span></div>'+
       '<div class="info-item"><span class="key">運費</span><span class="val">'+feeDisp+'</span></div>'+
       '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+'</span></div>'+
-      locationRow+
-      detailRow+
     '</div>'+
     '<div class="card-footer">'+
       '<div class="status-group"><label>💳 付款狀態</label>'+
