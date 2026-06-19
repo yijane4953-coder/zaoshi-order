@@ -415,6 +415,23 @@ const MENU={
   pigjiao:{name:"醬燒豬腳",desc:"600g±10%",price:290},
   sun:{name:"香滷嫩筍",desc:"600g±10%",price:130}
 };
+// ══════════════════════════════════════════════
+// ⚖️ 重量資料流（套餐拆解對照表，沿用 admin.html 邏輯，key 改用代號）
+// 套餐不另外設定重量，由組成單品的重量加總計算
+// ══════════════════════════════════════════════
+const SET_DECOMPOSE={
+  A:{dongpo:1,sun:1},
+  B:{tipang:1,sun:1},
+  C:{dongpo:1,pigjiao:1,sun:1},
+  D:{tipang:1,pigjiao:1,sun:1},
+  E:{dongpo:1,tipang:1,pigjiao:1,sun:1},
+  F:{dongpo:1,pigjiao:1},
+  G:{tipang:1,pigjiao:1},
+  H:{dongpo:1,tipang:1,pigjiao:1}
+};
+// 單品重量(kg)，由 Google Sheet「商品設定」分頁的「重量(kg)」欄位載入後填入
+// 載入完成前先給預設值 0，避免商品設定尚未取得時運算出錯
+const ITEM_WEIGHTS={dongpo:0,tipang:0,pigjiao:0,sun:0};
 const qty={};Object.keys(MENU).forEach(k=>qty[k]=0);
 let selectedDate="";
 let blockedDates=[];  // 不可取日陣列（從 Sheet 載入）
@@ -433,6 +450,52 @@ async function loadBlockedDates(){
   }catch(e){
     console.warn("無法載入不可取日，預設全部可取");
   }
+}
+
+// ══════════════════════════════════════════════
+// ⚖️ 載入單品重量（從 Google Sheet「商品設定」分頁的「重量(kg)」欄位）
+// 失敗時 ITEM_WEIGHTS 維持預設值 0，不影響下單流程，僅重量計算結果會不準確
+// ══════════════════════════════════════════════
+async function loadProductWeights(){
+  try{
+    const resp=await fetch(SCRIPT_URL+"?action=getProducts");
+    const result=await resp.json();
+    if(result.success && Array.isArray(result.products)){
+      result.products.forEach(p=>{
+        if(ITEM_WEIGHTS.hasOwnProperty(p.id) && typeof p.weight==="number" && p.weight>0){
+          ITEM_WEIGHTS[p.id]=p.weight;
+        }
+      });
+    }
+  }catch(e){
+    console.warn("無法載入商品重量，重量計算將顯示為 0");
+  }
+}
+
+// ══════════════════════════════════════════════
+// ⚖️ 重量計算函式（僅建立資料流，尚未接入運費邏輯）
+// ══════════════════════════════════════════════
+// 單一商品代號（單品或套餐）的重量（kg）
+function getItemWeight(key){
+  if(ITEM_WEIGHTS.hasOwnProperty(key)){
+    return ITEM_WEIGHTS[key]; // 單品：直接查重量
+  }
+  if(SET_DECOMPOSE.hasOwnProperty(key)){
+    // 套餐：依組成單品重量加總（不另外設定套餐重量）
+    return Object.entries(SET_DECOMPOSE[key]).reduce((sum,[itemId,count])=>{
+      return sum+(ITEM_WEIGHTS[itemId]||0)*count;
+    },0);
+  }
+  return 0;
+}
+// 整張訂單總重量（kg）＝ Σ（每個商品重量 × 購買數量）
+function getOrderTotalWeight(){
+  return Object.keys(qty).reduce((sum,key)=>{
+    if(qty[key]>0){
+      sum+=getItemWeight(key)*qty[key];
+    }
+    return sum;
+  },0);
 }
 
 function initDateInput(){
@@ -631,7 +694,7 @@ function resetAll(){
   document.getElementById("mainScreen").style.display="block";document.querySelector(".cart-strip").style.display="flex";
   document.getElementById("successScreen").style.display="none";window.scrollTo(0,0);
 }
-initDateInput();updateTotal();initProductImages();initCitySelect();loadBlockedDates();
+initDateInput();updateTotal();initProductImages();initCitySelect();loadBlockedDates();loadProductWeights();
 
 // 禁止雙擊縮放
 (function(){
