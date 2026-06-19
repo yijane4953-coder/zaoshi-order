@@ -73,6 +73,7 @@ input.ef{border-color:var(--err);}
 .addr-select:disabled{opacity:0.45;cursor:not-allowed;}
 .addr-select.ef{border-color:var(--err);}
 .errmsg{color:var(--err);font-size:12px;margin-top:4px;display:none;}.errmsg.show{display:block;}
+.ship-rule-hint{font-size:11.5px;color:#5C0F0F;background:#FFF8E1;border:1px solid #E8C96A;border-radius:7px;padding:8px 10px;margin-top:8px;line-height:1.6;}
 .blocked-date-msg{display:none;margin-top:6px;padding:8px 12px;background:#fff5f5;border-radius:6px;font-size:12px;color:var(--err);border-left:3px solid var(--err);}
 .blocked-date-msg.show{display:block;}
 .hidden-field{display:none;}
@@ -108,10 +109,16 @@ input.ef{border-color:var(--err);}
 
 
 .cart-strip{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:2px solid var(--red);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 -4px 16px rgba(92,15,15,0.10);z-index:50;}
-.cart-total{font-size:12px;color:var(--ink-muted);}
+.cart-total{font-size:12px;color:var(--ink-muted);position:relative;}
 .cart-total strong{display:block;font-size:22px;font-weight:900;color:var(--red);line-height:1.1;}
 .cart-total strong::before{content:"$";}
-.cart-total .sub-note{font-size:11px;color:var(--ink-muted);margin-top:1px;}
+.cart-total .sub-note{font-size:11px;color:var(--ink-muted);margin-top:1px;cursor:pointer;}
+.cart-total .sub-note .detail-toggle{color:var(--red);font-weight:700;margin-left:4px;}
+.cart-detail-box{display:none;position:absolute;bottom:100%;left:16px;right:16px;margin-bottom:8px;background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:0 -4px 16px rgba(92,15,15,0.12);}
+.cart-detail-box.show{display:block;}
+.cart-detail-box .detail-row{display:flex;justify-content:space-between;font-size:13px;color:var(--ink);padding:4px 0;}
+.cart-detail-box .detail-row.total{border-top:1px dashed var(--border);margin-top:4px;padding-top:8px;font-weight:800;color:var(--red-dark);}
+.cart-detail-box .detail-warn{font-size:11px;color:#bf360c;background:#fff3e0;border-radius:6px;padding:6px 8px;margin-top:6px;line-height:1.5;}
 .btn-checkout{flex-shrink:0;padding:12px 22px;background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;font-size:14px;font-weight:800;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 3px 12px rgba(139,26,26,0.35);-webkit-tap-highlight-color:transparent;}
 .btn-checkout:disabled{opacity:.4;cursor:not-allowed;}.cart-sub{font-size:11px;color:var(--ink-muted);margin-top:1px;}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(92,15,15,0.5);z-index:200;align-items:flex-end;justify-content:center;}
@@ -265,10 +272,13 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
       </div>
       <input type="text" id="addr-detail" placeholder="詳細地址（路、街、號）">
       <div class="errmsg" id="err-address">請填寫完整配送地址（縣市、區域、詳細地址）</div>
+      <div class="ship-rule-hint">🚛 宅配通｜滿$3,000免運（限20kg內）。超過20kg需分件配送，每增加1件加收$200。</div>
     </div>
   </div>
   <div class="hidden-field" id="store711-field">
-    <div class="field" style="margin-top:12px;"><label class="fl" for="store711">7-11 門市名稱 <span class="req">*</span></label><input type="text" id="store711" placeholder="例：高雄三民門市"><div class="errmsg" id="err-store711">請填寫門市名稱</div></div>
+    <div class="field" style="margin-top:12px;"><label class="fl" for="store711">7-11 門市名稱 <span class="req">*</span></label><input type="text" id="store711" placeholder="例：高雄三民門市"><div class="errmsg" id="err-store711">請填寫門市名稱</div>
+      <div class="ship-rule-hint">🏪 7-11店到店｜滿$3,000免運（限10kg內）。超過10kg需分件配送，每增加1件加收$150。</div>
+    </div>
   </div>
   <div class="hidden-field" id="delivery-date-field">
     <div class="field" style="margin-top:12px;">
@@ -298,7 +308,8 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
 <div class="cart-strip">
   <div class="cart-total">
     訂單總計<strong id="totalDisplay">0</strong>
-    <div class="sub-note" id="cartSubNote"></div>
+    <div class="sub-note" id="cartSubNote" onclick="toggleCartDetail()"></div>
+    <div class="cart-detail-box" id="cartDetailBox"></div>
   </div>
   <button class="btn-checkout" id="btnCheckout" onclick="openConfirm()" disabled>確認訂單</button>
 </div>
@@ -531,11 +542,25 @@ function onTimeslotChange(){
 }
 function cq(k,d){qty[k]=Math.max(0,(qty[k]||0)+d);const el=document.getElementById("qn-"+k);el.textContent=qty[k];el.className="qty-num"+(qty[k]>0?" nz":"");document.getElementById("card-"+k).classList.toggle("active",qty[k]>0);updateTotal();}
 function getSubtotal(){return Object.keys(MENU).reduce((s,k)=>s+MENU[k].price*qty[k],0);}
+// ══════════════════════════════════════════════
+// 🚚 運費計算（依訂單總重量分級計件）
+// 宅配：每件上限20kg／7-11：每件上限10kg
+// 件數 = ceil(總重量 / 上限)；總重量為0時件數視為0（無商品時不產生運費）
+// 訂單金額（不含運費）未滿3000：件數 × 單件運費
+// 訂單金額（不含運費）滿3000：第一件免運，超出件數 × 單件運費
+// ══════════════════════════════════════════════
 function calcShipping(sub,pickup){
-  if(pickup==="自取")return{fee:0,label:"自取免運費",note:""};
-  if(sub>=3000)return{fee:0,label:"滿$3,000免運",note:"單地點，限20kg"};
-  if(pickup==="7-11店到店")return{fee:150,label:"7-11 店到店 $150",note:"單地點，限10kg，超過需寄第二件"};
-  return{fee:200,label:"宅配通低溫宅配 $200",note:"單地點，限20kg，超過需寄第二件"};
+  if(pickup==="自取")return{fee:0,label:"自取免運費",note:"",pieces:0,weight:0,limit:0,perFee:0};
+  const weight=getOrderTotalWeight();
+  const limit=pickup==="7-11店到店"?10:20;
+  const perFee=pickup==="7-11店到店"?150:200;
+  const pieces=weight>0?Math.ceil(weight/limit):0;
+  const isFree=sub>=3000;
+  const fee=isFree?Math.max(0,pieces-1)*perFee:pieces*perFee;
+  const methodLabel=pickup==="7-11店到店"?"7-11店到店":"宅配通低溫宅配";
+  let label=isFree?(pieces>1?methodLabel+"｜滿$3,000，第1件免運，超重"+(pieces-1)+"件加收 $"+fee:methodLabel+"｜滿$3,000免運"):methodLabel+"｜$"+perFee+" ×"+pieces+"件 ＝ $"+fee;
+  const note=pickup==="7-11店到店"?"單件限10kg":"單件限20kg";
+  return{fee,label,note,pieces,weight,limit,perFee,isFree};
 }
 function updateTotal(){
   const sub=getSubtotal();
@@ -545,11 +570,48 @@ function updateTotal(){
   document.getElementById("totalDisplay").textContent=grand.toLocaleString();
   document.getElementById("btnCheckout").disabled=sub===0;
   const note=document.getElementById("cartSubNote");
-  if(sub===0){note.textContent="";}
-  else if(pickup==="自取"){note.textContent="（自取免運費）";}
-  else if(pickup==="宅配"||pickup==="7-11店到店"){
-    note.textContent=s.fee===0?"（滿$3,000免運）":"（商品$"+sub.toLocaleString()+" ＋ 運費$"+s.fee+"）";
-  } else {note.textContent="（請選取貨方式以計算運費）";}
+  const detail=document.getElementById("cartDetailBox");
+  if(sub===0){
+    note.textContent="";
+    if(detail) detail.innerHTML="";
+    return;
+  }
+  if(pickup===""){
+    note.textContent="（請選取貨方式以計算運費）";
+    if(detail) detail.innerHTML="";
+    return;
+  }
+  // 精簡摘要：$合計（合計重Xkg、Y件）／自取則不顯示重量件數
+  if(pickup==="自取"){
+    note.innerHTML='$'+grand.toLocaleString()+'（自取免運費）<span class="detail-toggle">明細 ▾</span>';
+  }else{
+    note.innerHTML='$'+grand.toLocaleString()+'（合計重'+s.weight.toFixed(1)+'kg、'+s.pieces+'件）<span class="detail-toggle">明細 ▾</span>';
+  }
+  // 展開明細內容：訂單金額／總重量／配送方式／件數／運費／超重說明／運費規則
+  if(detail){
+    let rows='<div class="detail-row"><span>訂單金額</span><span>$'+sub.toLocaleString()+'</span></div>';
+    if(pickup!=="自取"){
+      rows+='<div class="detail-row"><span>總重量</span><span>'+s.weight.toFixed(2)+' kg</span></div>';
+      rows+='<div class="detail-row"><span>配送方式</span><span>'+pickup+'（'+s.note+'）</span></div>';
+      rows+='<div class="detail-row"><span>件數</span><span>'+s.pieces+' 件</span></div>';
+      rows+='<div class="detail-row"><span>運費</span><span>$'+s.fee.toLocaleString()+'</span></div>';
+      if(s.pieces>1){
+        rows+='<div class="detail-warn">⚠️ 商品總重超過單件上限，已自動拆為 '+s.pieces+' 件計算運費</div>';
+      }
+      rows+=pickup==="7-11店到店"
+        ?'<div class="ship-rule-hint">🏪 7-11店到店｜滿$3,000免運（限10kg內）。超過10kg需分件配送，每增加1件加收$150。</div>'
+        :'<div class="ship-rule-hint">🚛 宅配通｜滿$3,000免運（限20kg內）。超過20kg需分件配送，每增加1件加收$200。</div>';
+    }else{
+      rows+='<div class="detail-row"><span>取貨方式</span><span>自取</span></div>';
+      rows+='<div class="detail-row"><span>運費</span><span>$0</span></div>';
+    }
+    rows+='<div class="detail-row total"><span>訂單總計</span><span>$'+grand.toLocaleString()+'</span></div>';
+    detail.innerHTML=rows;
+  }
+}
+function toggleCartDetail(){
+  const detail=document.getElementById("cartDetailBox");
+  if(detail) detail.classList.toggle("show");
 }
 document.querySelectorAll('input[name="pickup"]').forEach(el=>el.addEventListener("change",onPickupChange));
 document.querySelectorAll('input[name="payment"]').forEach(el=>el.addEventListener("change",onPayChange));
@@ -642,6 +704,7 @@ function openConfirm(){
     '<div class="confirm-row"><span class="ck">付款方式</span><span class="cv">'+payment+(last5?"（後五碼："+last5+"）":"")+'</span></div>'+
     addrRow+
     '<div class="confirm-row"><span class="ck">訂購品項</span><div class="cv"><div>'+itemsHtml+'</div></div></div>'+
+    (pickup!=="自取"?'<div class="confirm-row"><span class="ck">訂單總重</span><span class="cv">'+s.weight.toFixed(2)+' kg（'+s.pieces+'件）</span></div>':'')+
     '<div class="confirm-row"><span class="ck">商品小計</span><span class="cv">$'+sub.toLocaleString()+'</span></div>'+
     '<div class="confirm-row"><span class="ck">'+s.label+'</span><span class="cv">'+( s.fee===0?"免運":"$"+s.fee)+'</span></div>'+
     '<div class="confirm-row"><span class="ck">訂單總計</span><span class="cv total">$'+grand.toLocaleString()+'</span></div>';
