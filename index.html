@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -269,6 +270,13 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
   <div class="hidden-field" id="store711-field">
     <div class="field" style="margin-top:12px;"><label class="fl" for="store711">7-11 門市名稱 <span class="req">*</span></label><input type="text" id="store711" placeholder="例：高雄三民門市"><div class="errmsg" id="err-store711">請填寫門市名稱</div></div>
   </div>
+  <div class="hidden-field" id="delivery-date-field">
+    <div class="field" style="margin-top:12px;">
+      <label class="fl" for="delivery-date">希望配達日期 <span class="opt">（選填）</span></label>
+      <input type="date" id="delivery-date" style="width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:7px;font-size:16px;color:var(--ink);background:var(--paper);">
+      <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">※ 僅供參考，實際配送日期以店家確認為準</div>
+    </div>
+  </div>
 </div>
 <div class="form-card">
   <div class="form-sec-title">💳 付款方式</div>
@@ -487,6 +495,7 @@ function onPickupChange(){
   document.getElementById("calendar-field").classList.toggle("hidden-field",v!=="自取");
   document.getElementById("addr-field").classList.toggle("hidden-field",v!=="宅配");
   document.getElementById("store711-field").classList.toggle("hidden-field",v!=="7-11店到店");
+  document.getElementById("delivery-date-field").classList.toggle("hidden-field",v==="自取"||!v);
   const cashOpt=document.getElementById("opt-cash");
   if(v==="自取"){cashOpt.classList.remove("disabled");}
   else{cashOpt.classList.add("disabled");document.getElementById("pay-transfer").checked=true;onPayChange();}
@@ -561,6 +570,8 @@ function openConfirm(){
   let addrRow="";
   if(pickup==="宅配")addrRow='<div class="confirm-row"><span class="ck">配送地址</span><span class="cv">'+esc(addr)+'</span></div>';
   if(pickup==="7-11店到店")addrRow='<div class="confirm-row"><span class="ck">取貨門市</span><span class="cv">'+esc(store711)+'</span></div>';
+  const deliveryDate=document.getElementById("delivery-date")?.value||"";
+  if((pickup==="宅配"||pickup==="7-11店到店")&&deliveryDate)addrRow+='<div class="confirm-row"><span class="ck">希望配達</span><span class="cv">'+esc(deliveryDate)+'</span></div>';
   document.getElementById("confirmContent").innerHTML=
     '<div class="confirm-row"><span class="ck">姓名</span><span class="cv">'+esc(name)+'</span></div>'+
     '<div class="confirm-row"><span class="ck">電話</span><span class="cv">'+esc(phone)+'</span></div>'+
@@ -591,7 +602,7 @@ async function submitOrder(){
   const pickupDisplay=pickup==="自取"?
     "自取（"+selectedDate+" "+(pickupTs==="other"?"其他時間 "+otherTime:pickupTs)+"）":
     pickup==="7-11店到店"?"7-11店到店（"+document.getElementById("store711").value.trim()+"）":pickup;
-  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?getFullAddress():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",pickupTime:pickup==="自取"?pickupTimeVal:"",otherPickupDatetime:pickup==="自取"?otherPickupVal:"",qty:Object.keys(MENU).filter(k=>qty[k]>0).reduce((s,k)=>s+qty[k],0),itemDetail,total:grand,shippingFee:s.fee,payStatus,shipStatus};try{
+  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?getFullAddress():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",pickupTime:pickup==="自取"?pickupTimeVal:"",otherPickupDatetime:pickup==="自取"?otherPickupVal:"",qty:Object.keys(MENU).filter(k=>qty[k]>0).reduce((s,k)=>s+qty[k],0),itemDetail,total:grand,shippingFee:s.fee,payStatus,shipStatus,deliveryDate:(pickup==="宅配"||pickup==="7-11店到店")?document.getElementById("delivery-date").value:""};try{
     const resp=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"submitOrder",data})});
     const result=await resp.json();
     if(result.success){closeConfirm();document.getElementById("mainScreen").style.display="none";document.querySelector(".cart-strip").style.display="none";document.getElementById("successId").textContent=result.orderId;document.getElementById("successScreen").style.display="block";window.scrollTo(0,0);}
