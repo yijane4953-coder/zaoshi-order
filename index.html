@@ -241,6 +241,7 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
       <div class="toggle-option" id="opt-711"><input type="radio" name="pickup" id="pickup-711" value="7-11店到店"><label class="tl" for="pickup-711"><span class="tl-icon">🏪</span>7-11店到店</label></div>
     </div>
     <div class="errmsg" id="err-pickup">請選擇取貨方式</div>
+    <div class="blocked-date-msg" id="weight-load-warn">⚠️ 商品重量資料載入失敗，暫時無法以宅配／7-11店到店方式送單，請改選自取或稍後再試</div>
   </div>
   <div class="hidden-field" id="calendar-field">
     <div class="field" style="margin-top:12px;">
@@ -248,6 +249,7 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
       <input type="date" id="pickup-date" class="inp" onchange="onDateChange()">
       <div class="errmsg" id="err-date">請選擇自取日期</div>
       <div class="blocked-date-msg" id="blocked-date-msg">⚠️ 此日期無法自取，請選擇其他日期</div>
+      <div class="blocked-date-msg" id="blocked-dates-load-warn">⚠️ 無法確認可取貨日期，請聯絡店家確認您選擇的日期是否可自取，再送出訂單</div>
     </div>
     <div class="field">
       <label class="fl" for="timeslot">自取時段 <span class="req">*</span></label>
@@ -301,6 +303,7 @@ button,label,select{touch-action:manipulation;-webkit-user-select:none;user-sele
     <div class="field" style="margin-top:12px;">
       <label class="fl" for="delivery-date">希望配達日期 <span class="opt">（選填）</span></label>
       <input type="date" id="delivery-date" style="width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:7px;font-size:16px;color:var(--ink);background:var(--paper);">
+      <div class="errmsg" id="err-delivery-date">配達日期不得早於今天</div>
       <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">※ 僅供參考，實際配送日期以店家確認為準</div>
     </div>
   </div>
@@ -463,6 +466,7 @@ const ITEM_WEIGHTS={dongpo:0,tipang:0,pigjiao:0,sun:0};
 const qty={};Object.keys(MENU).forEach(k=>qty[k]=0);
 let selectedDate="";
 let blockedDates=[];  // 不可取日陣列（從 Sheet 載入）
+let blockedDatesLoadFailed=false;  // 不可取日載入是否失敗（失敗時需提醒客人，不可默認全部可選）
 
 // 設定日期選擇器最小日期為今天
 // ══════════════════════════════════════════════
@@ -474,29 +478,45 @@ async function loadBlockedDates(){
     const result=await resp.json();
     if(result.success && Array.isArray(result.blockedDates)){
       blockedDates=result.blockedDates;
+      blockedDatesLoadFailed=false;
+    }else{
+      blockedDatesLoadFailed=true;
     }
   }catch(e){
-    console.warn("無法載入不可取日，預設全部可取");
+    console.warn("無法載入不可取日");
+    blockedDatesLoadFailed=true;
   }
+  const warnEl=document.getElementById("blocked-dates-load-warn");
+  if(warnEl) warnEl.classList.toggle("show",blockedDatesLoadFailed);
 }
 
 // ══════════════════════════════════════════════
 // ⚖️ 載入單品重量（從 Google Sheet「商品設定」分頁的「重量(kg)」欄位）
 // 失敗時 ITEM_WEIGHTS 維持預設值 0，不影響下單流程，僅重量計算結果會不準確
 // ══════════════════════════════════════════════
+let productWeightsLoadFailed=false;  // 重量資料載入是否失敗（失敗時宅配/7-11不可送單，避免運費被誤算為0）
 async function loadProductWeights(){
   try{
     const resp=await fetch(SCRIPT_URL+"?action=getProducts");
     const result=await resp.json();
-    if(result.success && Array.isArray(result.products)){
+    if(result.success && Array.isArray(result.products) && result.products.length>0){
+      let gotAny=false;
       result.products.forEach(p=>{
         if(ITEM_WEIGHTS.hasOwnProperty(p.id) && typeof p.weight==="number" && p.weight>0){
           ITEM_WEIGHTS[p.id]=p.weight;
+          gotAny=true;
         }
       });
+      productWeightsLoadFailed=!gotAny;
+    }else{
+      productWeightsLoadFailed=true;
     }
   }catch(e){
-    console.warn("無法載入商品重量，重量計算將顯示為 0");
+    console.warn("無法載入商品重量");
+    productWeightsLoadFailed=true;
+  }
+  if(productWeightsLoadFailed){
+    console.warn("重量資料載入失敗，宅配／7-11店到店將無法送單");
   }
 }
 
@@ -528,10 +548,11 @@ function getOrderTotalWeight(){
 
 function initDateInput(){
   const el=document.getElementById("pickup-date");
-  if(!el) return;
   const today=new Date();
   const ymd=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
-  el.min=ymd;
+  if(el) el.min=ymd;
+  const deliveryEl=document.getElementById("delivery-date");
+  if(deliveryEl) deliveryEl.min=ymd;
 }
 
 function onDateChange(){
@@ -642,6 +663,8 @@ function onPickupChange(){
   if(v==="自取"){cashOpt.classList.remove("disabled");}
   else{cashOpt.classList.add("disabled");document.getElementById("pay-transfer").checked=true;onPayChange();}
   if(v==="自取"){document.querySelectorAll('input[name="payment"]').forEach(r=>r.checked=false);document.getElementById("bank-field").classList.add("hidden-field");}
+  const weightWarn=document.getElementById("weight-load-warn");
+  if(weightWarn) weightWarn.classList.toggle("show",productWeightsLoadFailed&&(v==="宅配"||v==="7-11店到店"));
   updateTotal();
 }
 function onPayChange(){const isT=document.getElementById("pay-transfer").checked;document.getElementById("bank-field").classList.toggle("hidden-field",!isT);if(!isT)document.getElementById("last5").value="";}
@@ -655,6 +678,10 @@ function validate(){
   if(!/^09\d{8}$/.test(phone)){showErr("err-phone",true);markErr("phone",true);ok=false;}else{showErr("err-phone",false);markErr("phone",false);}
   const pickup=(document.querySelector('input[name="pickup"]:checked')||{}).value;
   if(!pickup){showErr("err-pickup",true);ok=false;}else showErr("err-pickup",false);
+  if((pickup==="宅配"||pickup==="7-11店到店")&&productWeightsLoadFailed){
+    document.getElementById("weight-load-warn")?.classList.add("show");
+    ok=false;
+  }
   if(pickup==="自取"&&!selectedDate){showErr("err-date",true);ok=false;}else showErr("err-date",false);
   if(pickup==="自取"&&selectedDate){
     const dateSlash=selectedDate.replace(/-/g,"/");
@@ -687,6 +714,15 @@ function validate(){
   const payment=(document.querySelector('input[name="payment"]:checked')||{}).value;
   if(!payment){showErr("err-payment",true);ok=false;}else showErr("err-payment",false);
   if(payment==="匯款"){const l5=document.getElementById("last5").value.trim();if(!/^\d{5}$/.test(l5)){showErr("err-last5",true);markErr("last5",true);ok=false;}else{showErr("err-last5",false);markErr("last5",false);}}
+  if((pickup==="宅配"||pickup==="7-11店到店")){
+    const dEl=document.getElementById("delivery-date");
+    const dVal=dEl?dEl.value:"";
+    if(dVal){
+      const today=new Date();
+      const todayYmd=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+      if(dVal<todayYmd){showErr("err-delivery-date",true);ok=false;}else showErr("err-delivery-date",false);
+    }else showErr("err-delivery-date",false);
+  }
   return ok;
 }
 function openConfirm(){
