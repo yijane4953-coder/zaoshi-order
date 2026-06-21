@@ -144,7 +144,7 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 <div class="stats-row">
   <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">待出貨</div></div>
   <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
-  <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日營收</div></div>
+  <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日實收金額</div></div>
   <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
 </div>
 <button class="stats-toggle" id="statsToggleBtn" onclick="toggleStats2()">次要數據 ▾</button>
@@ -433,7 +433,7 @@ function renderCard(o){
       '<div class="info-item"><span class="key">訂單總計</span><span class="val big">'+totalDisp+'</span></div>'+
       '<div class="info-item"><span class="key">商品小計</span><span class="val">'+subDisp+'</span></div>'+
       '<div class="info-item"><span class="key">運費</span><span class="val">'+feeDisp+'</span></div>'+
-      '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")+":"")+'</span></div>'+
+      '<div class="info-item"><span class="key">付款方式</span><span class="val">'+esc(o.payment)+(o.last5?" ("+esc(o.last5)+")":"")+'</span></div>'+
     '</div>'+
     '<div class="card-footer">'+
       '<div class="status-group"><label>💳 付款狀態</label>'+
@@ -448,13 +448,11 @@ function renderCard(o){
 }
 
 async function updateStatus(orderId,field,value,selectEl){
-  updateSelectStyle(selectEl,field,value);
-  // 先更新本地資料
   const order=allOrders.find(o=>String(o.orderId)===String(orderId));
-  console.log("找到訂單：",order?"是":"否","orderId=",orderId,"field=",field,"value=",value);
+  const prevValue=order?order[field]:null; // 記錄原值，失敗時復原
+  updateSelectStyle(selectEl,field,value);
   if(order){
     order[field]=value;
-    console.log("更新後 shipStatus=",order.shipStatus,"payStatus=",order.payStatus);
   }
   // 立即重繪（不等 API 回應）
   renderAll();
@@ -463,11 +461,20 @@ async function updateStatus(orderId,field,value,selectEl){
   try{
     const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId:String(orderId),field,value})});
     const d=await r.json();
-    if(d.success) showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
-    else showToast("⚠️ 更新失敗："+d.message);
+    if(d.success){
+      showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
+    }else{
+      if(order && prevValue!==null){ order[field]=prevValue; }
+      renderAll();
+      updateStats();
+      showToast("⚠️ 更新失敗，已還原："+d.message);
+    }
   }catch(e){
     console.error("更新失敗",e);
-    showToast("⚠️ 網路錯誤，請重試");
+    if(order && prevValue!==null){ order[field]=prevValue; }
+    renderAll();
+    updateStats();
+    showToast("⚠️ 網路錯誤，已還原，請重試");
   }
 }
 
@@ -485,7 +492,8 @@ function updateStats(){
   document.getElementById("stat-today").textContent=todayOrders.length;
   document.getElementById("stat-undone").textContent=allOrders.filter(o=>!doneStat.includes(o.shipStatus)).length;
   document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
-  const revenue=todayOrders.reduce((s,o)=>s+(Number(o.total)||0),0);
+  // 今日收入金額：僅計入已實際收款（已付款／已收現金），排除取消訂單與未收款訂單
+  const revenue=todayOrders.filter(o=>o.shipStatus!=="取消"&&["已付款","已收現金"].includes(o.payStatus)).reduce((s,o)=>s+(Number(o.total)||0),0);
   document.getElementById("stat-revenue").textContent="$"+revenue.toLocaleString();
   // 第二排
   document.getElementById("stat-today-pickup").textContent=todayOrders.filter(o=>String(o.pickup).startsWith("自取")).length;
