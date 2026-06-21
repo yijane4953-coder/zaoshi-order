@@ -2,10 +2,68 @@
 
 > 專案啟動：2026/06/16
 > 最後更新：2026/06/22
+> 版本目錄以 Google Sheet 版本目錄為正式來源，版號為歷史紀錄，不因開發時序追溯重編。
 
 ---
 
-## v1.7.2 — 第三階段：購物車與後端計價（2026/06/22）
+## v1.8 — 歷史訂單基礎功能（2026/06/22）
+
+### 定義
+**範圍：**
+- 今日訂單與非當日訂單分流顯示
+- 非當日訂單不再累積於今日主畫面
+- 具備基礎日期分組／歷史區塊顯示
+
+**不包含**（列為後續「歷史訂單功能加強」，不併入本版）：
+- 日期區間篩選
+- 進階搜尋
+- 歷史統計
+- 匯出報表
+
+### 內容
+- 後台新增「📋 歷史訂單」頁籤，已完成訂單（已出貨／自取完成／取消）由「全部」頁籤移出，避免累積影響今日訂單檢視
+- 歷史訂單依日期自動分組顯示，各組標示日期與筆數
+
+### 修改檔案
+- `admin.html`
+
+---
+
+## v1.7.2 — 訂單編號重構（2026/06/22）
+
+### 問題
+`generateOrderId()` 原本透過讀取 Google Sheet 現有資料、取最大序號+1 的方式生成編號。即使在 LockService 鎖保護下，仍因 Google Sheet 試算表引擎「寫入後讀取」可能存在短暫非即時一致性，導致不同 `requestId` 的訂單在高頻請求下生成相同編號（測試重現：3筆不同訂單皆生成 `Z20260622001`）。
+
+### 修正
+改用 Script Properties 維護「每日序號計數器」（key: `ORDER_SEQ_yyyyMMdd`），生成編號時直接對計數器執行「讀取→遞增→寫回」，不再依賴 Sheet 讀取結果。
+
+### 驗證
+不同 `requestId` 幾乎同時送出，訂單編號依序遞增、無重複，驗證通過。
+
+### 修改檔案
+- `Code.gs`（`generateOrderId()`）
+
+---
+
+## v1.7.1 — 防重複送單機制（2026/06/22）
+
+### 新增
+- 前端每次開啟確認彈窗時產生唯一 `requestId`（時間戳+隨機字串）
+- 後端以 Script Properties 暫存近期已處理的 `requestId`（有效期10分鐘，逾期自動視為可清除）
+- 同一 `requestId` 重複送出時，直接回傳第一次的處理結果，不重複建立訂單
+
+### 修正：競態條件（LockService）
+- **問題**：初版機制存在競態條件——兩個幾乎同時抵達的相同 `requestId` 請求，可能同時通過「尚未處理」的檢查，各自完成寫入，產生重複訂單。經實際測試（同一 requestId 連續發送兩次請求）重現此問題
+- **修正**：`submitOrder()` 整段邏輯（requestId檢查／重新計價／金額比對／寫入Sheet／標記完成）以 `LockService.getScriptLock()` 包覆，確保整個流程對同一時間的多個請求是序列化、不可被插隊的單一操作
+- 修正後重新測試：同一 `requestId` 連續送出，Sheet 僅新增一筆訂單，驗證通過
+
+### 修改檔案
+- `index.html`（`openConfirm()` 產生requestId）
+- `Code.gs`（`checkDuplicateRequest()`／`markRequestProcessed()`，`submitOrder()` 加上LockService）
+
+---
+
+## v1.7 — 後端計價與送單驗證（2026/06/22）
 
 ### 背景
 原本前台計算金額（商品小計、運費、總金額）並直接送往後端寫入 Google Sheet，後端完全信任前端數字，零驗證。本版將「計算金額」的權威來源從前端轉移至後端，前端僅送出結構化商品清單與配送選擇，最終金額一律由後端依 Google Sheet 商品主檔重新計算。
@@ -24,29 +82,14 @@
   - 設計原則：金額異動絕不靜默覆蓋，必須經客人確認後才送出，避免信任問題
 - 新增 `INVALID_ITEMS` 防呆：訂單內含不存在於商品主檔、未上架、或數量不合法的商品時，整筆拒絕，不寫入
 
-### 新增：requestId 防重複送單
-- 前端每次開啟確認彈窗時產生唯一 `requestId`（時間戳+隨機字串）
-- 後端以 Script Properties 暫存近期已處理的 `requestId`（有效期10分鐘，逾期自動視為可清除）
-- 同一 `requestId` 重複送出時，直接回傳第一次的處理結果，不重複建立訂單
-
-### 修正：requestId 防重複機制的競態條件（LockService）
-- **問題**：初版防重複送單機制存在競態條件——兩個幾乎同時抵達的相同 `requestId` 請求，可能同時通過「尚未處理」的檢查，各自完成寫入，產生重複訂單。經實際測試（同一 requestId 連續發送兩次請求）重現此問題
-- **修正**：`submitOrder()` 整段邏輯（requestId檢查／重新計價／金額比對／寫入Sheet／標記完成）以 `LockService.getScriptLock()` 包覆，確保整個流程對同一時間的多個請求是序列化、不可被插隊的單一操作
-- 修正後重新測試：同一 `requestId` 連續送出，Sheet 僅新增一筆訂單，驗證通過
-
-### 修正：訂單編號重複生成問題
-- **問題**：`generateOrderId()` 原本透過讀取 Google Sheet 現有資料、取最大序號+1 的方式生成編號。即使在 LockService 鎖保護下，仍因 Google Sheet 試算表引擎「寫入後讀取」可能存在短暫非即時一致性，導致不同 `requestId` 的訂單在高頻請求下生成相同編號（測試重現：3筆不同訂單皆生成 `Z20260622001`）
-- **修正**：改用 Script Properties 維護「每日序號計數器」（key: `ORDER_SEQ_yyyyMMdd`），生成編號時直接對計數器執行「讀取→遞增→寫回」，不再依賴 Sheet 讀取結果
-- 修正後重新測試：不同 `requestId` 幾乎同時送出，訂單編號依序遞增、無重複，驗證通過
-
-### 確認不啟用（留待第四階段）
-- `deductStock()` 本階段刻意不啟用，維持既有狀態（已定義但不於 `submitOrder` 中呼叫）。原因：扣庫存與「庫存是否足夠」檢查須為同一原子操作的兩部分，本階段僅完成計價驗證，缺少庫存量檢查時啟用扣庫存有導致庫存變負數的風險
+### 確認不啟用（留待庫存管理階段）
+- `deductStock()` 本版刻意不啟用，維持既有狀態（已定義但不於 `submitOrder` 中呼叫）。原因：扣庫存與「庫存是否足夠」檢查須為同一原子操作的兩部分，本版僅完成計價驗證，缺少庫存量檢查時啟用扣庫存有導致庫存變負數的風險
 
 ### 修改檔案
-- `index.html`（`submitOrder()`、`openConfirm()`、新增 `getOrderItemsList()`／`generateRequestId()`）
-- `Code.gs`（新增 `getProductCatalog()`／`calculateOrderPricing()`／`checkDuplicateRequest()`／`markRequestProcessed()`，重構 `submitOrder()`，修正 `generateOrderId()`）
+- `index.html`（`submitOrder()`、新增 `getOrderItemsList()`）
+- `Code.gs`（新增 `getProductCatalog()`／`calculateOrderPricing()`，重構 `submitOrder()`）
 
-### 測試結果摘要
+### 測試結果摘要（v1.7／v1.7.1／v1.7.2 合併測試）
 | 類別 | 項目 | 結果 |
 |---|---|---|
 | 核心安全 | 竄改 `expectedTotal` | ✅ 正確攔截為 `PRICE_MISMATCH`，未寫入 |
@@ -55,11 +98,28 @@
 | 功能 | 正常下單（套餐+單品混合） | ✅ 金額／重量／品項明細皆正確 |
 | 功能 | 無效商品ID | ✅ 正確攔截為 `INVALID_ITEMS` |
 | 功能 | 自取／宅配／7-11 | ✅ 運費計算皆正確（$0／件數×$200／件數×$150） |
-| 回歸 | 第一、二階段既有功能 | ✅ 全數通過，未受影響 |
+| 回歸 | v1.7.0、v1.6.5、v1.6.6 既有功能 | ✅ 全數通過，未受影響 |
 
 ---
 
-## v1.7.1 — 第二階段：後台登入保護（2026/06/21）
+## v1.6.6 — 安全強化修正（2026/06/21）
+
+### 背景
+v1.6.5 完成後經複查，提出四項必修安全項目。
+
+### 修正內容
+1. **XSS 風險修復**：`esc()` 函式原僅轉義 `& < >`，補上 `" '` 轉義；補上原本遺漏 `esc()` 的電話欄位（客人可控輸入，原為儲存型XSS風險點）；`orderId` 拼接於HTML屬性處與歷史訂單日期標籤一併補強防禦性轉義
+2. **Token 不放 URL／不輸出 console**：`getOrders` 由 GET 改為 POST，token 改置於 request body；移除所有會印出完整URL、token、或訂單明細內容的 `console.log`
+3. **固定錯誤代碼**：所有失敗回應統一新增 `code` 欄位（`AUTH_REQUIRED`／`AUTH_EXPIRED`／`AUTH_REPLACED`／`LOGIN_FAILED`／`VALIDATION_FAILED`／`ORDER_NOT_FOUND`／`UNKNOWN_ACTION`／`SERVER_ERROR` 等），前端改用 `isAuthError(code)` 判斷，取代原本不可靠的中文字串比對
+4. **updateOrder 雙重白名單**：新增 `UPDATE_FIELD_WHITELIST`，同時限制「可修改欄位」與「該欄位可接受的值」，杜絕任意字串寫入 Google Sheet
+
+### 修改檔案
+- `admin.html`（登入流程、esc強化）
+- `Code.gs`（`doGet`／`doPost`／`updateOrder` 白名單）
+
+---
+
+## v1.6.5 — 後台登入驗證（2026/06/21）
 
 ### 背景
 `admin.html` 原僅以前端密碼提示（prompt）作為保護，`getOrders`／`updateOrder` 後端完全不驗證身分，任何人知道 API 網址即可繞過前端取得全部客人個資或竄改訂單狀態。
@@ -69,15 +129,9 @@
 - 新增 `login()`／`verifyToken()`／`logout()`：登入成功產生隨機 token（兩組UUID拼接），24小時內有效，過期判斷一律以後端時間為準；同帳號新登入會使舊 token 立即失效
 - `getOrders`、`updateOrder` 皆須通過 `verifyToken()` 驗證；未通過則直接拒絕，`getOrders` 失敗時**不回傳任何訂單陣列**（姓名、電話、地址等個資完全不外洩）
 
-### 安全修正（複查後追加，四項）
-1. **XSS 風險修復**：`esc()` 函式原僅轉義 `& < >`，補上 `" '` 轉義；補上原本遺漏 `esc()` 的電話欄位（客人可控輸入，原為儲存型XSS風險點）；`orderId` 拼接於HTML屬性處與歷史訂單日期標籤一併補強防禦性轉義
-2. **Token 不放 URL／不輸出 console**：`getOrders` 由 GET 改為 POST，token 改置於 request body；移除所有會印出完整URL、token、或訂單明細內容的 `console.log`
-3. **固定錯誤代碼**：所有失敗回應統一新增 `code` 欄位（`AUTH_REQUIRED`／`AUTH_EXPIRED`／`AUTH_REPLACED`／`LOGIN_FAILED`／`VALIDATION_FAILED`／`ORDER_NOT_FOUND`／`UNKNOWN_ACTION`／`SERVER_ERROR` 等），前端改用 `isAuthError(code)` 判斷，取代原本不可靠的中文字串比對
-4. **updateOrder 雙重白名單**：新增 `UPDATE_FIELD_WHITELIST`，同時限制「可修改欄位」與「該欄位可接受的值」，杜絕任意字串寫入 Google Sheet
-
 ### 修改檔案
-- `admin.html`（登入流程、token存取、API呼叫改帶token、esc強化）
-- `Code.gs`（`login`／`verifyToken`／`logout`／`doGet`／`doPost`／`updateOrder` 白名單）
+- `admin.html`（登入流程、token存取、API呼叫改帶token）
+- `Code.gs`（新增 `login`／`verifyToken`／`logout`，`doGet`／`doPost`、`updateOrder` 加上驗證）
 
 ### 確認不影響
 - 訂單資料結構、前台 `index.html` 完全不受影響
@@ -86,12 +140,15 @@
 
 ## v1.7.0 — 第一階段：既有 Bug 修復（2026/06/21）
 
+> 備註：本版號開發時序早於 v1.6.5／v1.6.6（先完成既有Bug修復，後進行登入保護開發），
+> 版號數字與開發時序不完全一致，依 Google Sheet 版本目錄原則維持版號不重編，特此註明時序。
+
 ### 背景
 系統上線運作一段時間後，累積七項待修正問題，涵蓋顯示錯誤、統計邏輯、資料完整性與防呆機制。
 
 ### 修復清單
 1. **付款後五碼顯示多餘符號**：`admin.html` 字串拼接打字錯誤，移除多餘 `+`
-2. **今日實收金額邏輯**：原「今日營收」未排除取消訂單、且非實收金額（含未收款訂單）。修正為僅計入 `payStatus` 為「已付款」或「已收現金」的訂單，並更名「今日實收金額」以名實相符
+2. **今日訂單金額邏輯**：原始版本未排除取消訂單、且非實收金額（含未收款訂單）。修正為僅計入 `payStatus` 為「已付款」或「已收現金」的訂單，並更名「今日實收金額」以名實相符（v1.5.5 當時新增此功能時名稱為「今日訂單金額」，本次修正調整邏輯與名稱，v1.5.5 歷史紀錄不予追溯改寫）
 3. **後台狀態更新失敗復原機制**：原本 API 失敗時畫面仍顯示已更新成功的假象。修正為失敗時將畫面與本地資料還原至更新前狀態，並提示「已還原」
 4. **配達日期下限**：新增 `min` 屬性與 `validate()` 雙重防護，禁止選擇早於今天的配達日期
 5. **不可取日載入失敗警告**：原失敗時默默視為「全部可選」。修正為顯示明確警告，提醒客人聯絡店家確認，不阻擋下單（不可取日為店家排程考量，非強制流程卡點）
