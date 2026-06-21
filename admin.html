@@ -144,7 +144,7 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 <div class="stats-row">
   <div class="stat-card"><div class="num" id="stat-undone">—</div><div class="lbl">待出貨</div></div>
   <div class="stat-card"><div class="num" id="stat-uncollected">—</div><div class="lbl">未收款</div></div>
-  <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日訂單金額</div></div>
+  <div class="stat-card"><div class="num" id="stat-revenue" style="font-size:20px;">—</div><div class="lbl">今日實收金額</div></div>
   <div class="stat-card"><div class="num" id="stat-today">—</div><div class="lbl">今日訂單</div></div>
 </div>
 <button class="stats-toggle" id="statsToggleBtn" onclick="toggleStats2()">次要數據 ▾</button>
@@ -492,8 +492,8 @@ function updateStats(){
   document.getElementById("stat-today").textContent=todayOrders.length;
   document.getElementById("stat-undone").textContent=allOrders.filter(o=>!doneStat.includes(o.shipStatus)).length;
   document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
-  // 今日訂單金額：排除已取消訂單，非實收金額（含未收款訂單）
-  const revenue=todayOrders.filter(o=>o.shipStatus!=="取消").reduce((s,o)=>s+(Number(o.total)||0),0);
+   // 今日收入金額：僅計入已實際收款（已付款／已收現金），排除取消訂單與未收款訂單
+  const revenue=todayOrders.filter(o=>o.shipStatus!=="取消"&&["已付款","已收現金"].includes(o.payStatus)).reduce((s,o)=>s+(Number(o.total)||0),0);
   document.getElementById("stat-revenue").textContent="$"+revenue.toLocaleString();
   // 第二排
   document.getElementById("stat-today-pickup").textContent=todayOrders.filter(o=>String(o.pickup).startsWith("自取")).length;
