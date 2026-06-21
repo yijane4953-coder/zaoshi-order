@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -196,14 +197,70 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
 <script>
 const SCRIPT_URL="https://script.google.com/macros/s/AKfycbxR9NjivKPDVCoEhmS6H4NNZe91cTo1HtoEqVs0zuC3RbKJv1mxOz4gJZ2tDyObc0MJ/exec";
 let allOrders=[],currentFilter="all";
+
+// ══════════════════════════════════════════════
+// 🔐 後台登入驗證（第二階段）
+// token 存於 localStorage，過期判斷一律以後端 verifyToken() 為準，
+// localStorage 僅作為「是否需要先跳登入框」的快速判斷，不能單獨信任
+// ══════════════════════════════════════════════
+const AUTH_TOKEN_KEY="zaoshi_admin_token";
+
+function getStoredToken(){
+  return localStorage.getItem(AUTH_TOKEN_KEY) || "";
+}
+function setStoredToken(token){
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+function clearStoredToken(){
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+// 確保已登入：若沒有 token，跳出密碼輸入；若 API 回應「未驗證」也會重新導向這裡（見 handleAuthFail）
+async function ensureLoggedIn(){
+  let token=getStoredToken();
+  if(!token){
+    return await promptLogin();
+  }
+  return token;
+}
+
+// 跳出密碼輸入框，呼叫後端 login()，成功則存 token
+async function promptLogin(){
+  const pwd=prompt("請輸入後台管理密碼：");
+  if(pwd===null) return ""; // 取消輸入
+  try{
+    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"login",password:pwd,shop:"default"})});
+    const d=await r.json();
+    if(d.success){
+      setStoredToken(d.token);
+      return d.token;
+    }else{
+      alert(d.message||"密碼錯誤");
+      return await promptLogin(); // 錯誤可重試
+    }
+  }catch(e){
+    alert("登入失敗，請檢查網路連線後重試");
+    return "";
+  }
+}
+
+// API 回應「未驗證/已過期」時統一處理：清除舊token、提示、重新登入
+async function handleAuthFail(message){
+  clearStoredToken();
+  alert((message||"登入已失效")+"，請重新登入");
+  const token=await promptLogin();
+  return token;
+}
 let searchKeyword="";
 
 async function loadOrders(){
   showLoading(true);
   document.getElementById("lastUpdate").textContent="載入中…";
+  const token=await ensureLoggedIn();
+  if(!token){ showLoading(false); document.getElementById("lastUpdate").textContent="未登入"; return; }
   console.log("🔄 開始載入訂單，URL：", SCRIPT_URL);
   try{
-    const url = SCRIPT_URL+"?action=getOrders&t="+Date.now();
+    const url = SCRIPT_URL+"?action=getOrders&token="+encodeURIComponent(token)+"&t="+Date.now();
     console.log("📡 fetch URL：", url);
     const r = await fetch(url);
     console.log("📥 HTTP 狀態：", r.status, r.statusText);
@@ -231,6 +288,12 @@ async function loadOrders(){
       updateStats();
       renderStock();
       document.getElementById("lastUpdate").textContent="更新："+new Date().toLocaleTimeString("zh-TW");
+    } else if(/登入|憑證|驗證/.test(d.message||"")){
+      console.warn("⚠️ 登入已失效：", d.message);
+      showLoading(false);
+      const newToken=await handleAuthFail(d.message);
+      if(newToken) loadOrders(); // 重新登入成功後自動重新載入
+      return;
     } else {
       console.error("❌ API 回傳失敗：", d.message);
       showError("API 回傳錯誤：" + d.message);
@@ -450,6 +513,12 @@ function renderCard(o){
 async function updateStatus(orderId,field,value,selectEl){
   const order=allOrders.find(o=>String(o.orderId)===String(orderId));
   const prevValue=order?order[field]:null; // 記錄原值，失敗時復原
+  const token=getStoredToken();
+  if(!token){
+    showToast("⚠️ 尚未登入，請重新整理頁面後登入");
+    selectEl.value=prevValue; // 還沒改畫面就先擋下，select維持原值
+    return;
+  }
   updateSelectStyle(selectEl,field,value);
   if(order){
     order[field]=value;
@@ -459,7 +528,7 @@ async function updateStatus(orderId,field,value,selectEl){
   updateStats();
   // 背景同步到 Sheet
   try{
-    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId:String(orderId),field,value})});
+    const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"updateOrder",orderId:String(orderId),field,value,token})});
     const d=await r.json();
     if(d.success){
       showToast("✅ 已更新："+(field==="payStatus"?"付款":"出貨")+"狀態");
@@ -467,7 +536,12 @@ async function updateStatus(orderId,field,value,selectEl){
       if(order && prevValue!==null){ order[field]=prevValue; }
       renderAll();
       updateStats();
-      showToast("⚠️ 更新失敗，已還原："+d.message);
+      if(/登入|憑證|驗證/.test(d.message||"")){
+        showToast("⚠️ 登入已失效，已還原，請重新整理頁面後登入");
+        clearStoredToken();
+      }else{
+        showToast("⚠️ 更新失敗，已還原："+d.message);
+      }
     }
   }catch(e){
     console.error("更新失敗",e);
@@ -492,7 +566,8 @@ function updateStats(){
   document.getElementById("stat-today").textContent=todayOrders.length;
   document.getElementById("stat-undone").textContent=allOrders.filter(o=>!doneStat.includes(o.shipStatus)).length;
   document.getElementById("stat-uncollected").textContent=allOrders.filter(o=>["待確認","現金未收"].includes(o.payStatus)&&!doneStat.includes(o.shipStatus)).length;
-   // 今日收入金額：僅計入已實際收款（已付款／已收現金），排除取消訂單與未收款訂單
+  // 今日訂單金額：排除已取消訂單，非實收金額（含未收款訂單）
+  // 今日收入金額：僅計入已實際收款（已付款／已收現金），排除取消訂單與未收款訂單
   const revenue=todayOrders.filter(o=>o.shipStatus!=="取消"&&["已付款","已收現金"].includes(o.payStatus)).reduce((s,o)=>s+(Number(o.total)||0),0);
   document.getElementById("stat-revenue").textContent="$"+revenue.toLocaleString();
   // 第二排
