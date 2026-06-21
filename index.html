@@ -464,6 +464,14 @@ const SET_DECOMPOSE={
 // 載入完成前先給預設值 0，避免商品設定尚未取得時運算出錯
 const ITEM_WEIGHTS={dongpo:0,tipang:0,pigjiao:0,sun:0};
 const qty={};Object.keys(MENU).forEach(k=>qty[k]=0);
+let currentRequestId=""; // 本次提交的防重複送單識別碼，於開啟確認彈窗時產生
+// 從購物車組出結構化商品清單，供後端重新計價使用（取代純文字itemDetail作為計價依據）
+function getOrderItemsList(){
+  return Object.keys(qty).filter(k=>qty[k]>0).map(k=>({id:k,qty:qty[k]}));
+}
+function generateRequestId(){
+  return Date.now()+"-"+Math.random().toString(36).slice(2,10);
+}
 let selectedDate="";
 let blockedDates=[];  // 不可取日陣列（從 Sheet 載入）
 let blockedDatesLoadFailed=false;  // 不可取日載入是否失敗（失敗時需提醒客人，不可默認全部可選）
@@ -727,6 +735,7 @@ function validate(){
 }
 function openConfirm(){
   if(!validate()){document.querySelector(".errmsg.show")?.scrollIntoView({behavior:"smooth",block:"center"});return;}
+  currentRequestId=generateRequestId();
   const pickup=(document.querySelector('input[name="pickup"]:checked')||{}).value;
   const payment=(document.querySelector('input[name="payment"]:checked')||{}).value;
   const last5=document.getElementById("last5").value.trim();
@@ -773,7 +782,6 @@ async function submitOrder(){
   if(pickup==="自取"&&payment==="現金"){payStatus="現金未收";shipStatus="待自取";}
   else if(pickup==="自取"&&payment==="匯款"){payStatus="待確認";shipStatus="待自取";}
   else{payStatus="待確認";shipStatus="待出貨";}
-  const itemDetail=Object.keys(MENU).filter(k=>qty[k]>0).map(k=>MENU[k].name+" x"+qty[k]+"，小計"+MENU[k].price*qty[k]).join("；");
   const pickupTs=document.getElementById("timeslot")?.value||"";
   const otherTime=document.getElementById("other-time")?.value||"";
   const pickupTimeVal=pickupTs==="other"?"其他時間":pickupTs;
@@ -781,10 +789,18 @@ async function submitOrder(){
   const pickupDisplay=pickup==="自取"?
     "自取（"+selectedDate+" "+(pickupTs==="other"?"其他時間 "+otherTime:pickupTs)+"）":
     pickup==="7-11店到店"?"7-11店到店（"+document.getElementById("store711").value.trim()+"）":pickup;
-  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?getFullAddress():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",pickupTime:pickup==="自取"?pickupTimeVal:"",otherPickupDatetime:pickup==="自取"?otherPickupVal:"",qty:Object.keys(MENU).filter(k=>qty[k]>0).reduce((s,k)=>s+qty[k],0),itemDetail,total:grand,shippingFee:s.fee,payStatus,shipStatus,deliveryDate:(pickup==="宅配"||pickup==="7-11店到店")?document.getElementById("delivery-date").value:""};try{
+  if(!currentRequestId) currentRequestId=generateRequestId(); // 防呆：理論上openConfirm已產生，此處僅防止意外為空
+  const data={name:document.getElementById("name").value.trim(),phone:document.getElementById("phone").value.trim(),pickup:pickupDisplay,pickupMethod:pickup,payment,last5:document.getElementById("last5").value.trim(),address:pickup==="宅配"?getFullAddress():"",store711:pickup==="7-11店到店"?document.getElementById("store711").value.trim():"",pickupDate:pickup==="自取"?selectedDate:"",pickupTime:pickup==="自取"?pickupTimeVal:"",otherPickupDatetime:pickup==="自取"?otherPickupVal:"",payStatus,shipStatus,deliveryDate:(pickup==="宅配"||pickup==="7-11店到店")?document.getElementById("delivery-date").value:"",orderItems:getOrderItemsList(),requestId:currentRequestId,expectedTotal:grand};try{
     const resp=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify({action:"submitOrder",data})});
     const result=await resp.json();
     if(result.success){closeConfirm();document.getElementById("mainScreen").style.display="none";document.querySelector(".cart-strip").style.display="none";document.getElementById("successId").textContent=result.orderId;document.getElementById("successScreen").style.display="block";window.scrollTo(0,0);}
+    else if(result.code==="PRICE_MISMATCH"){
+      // 金額不一致：該次未寫入Sheet、未標記requestId，需產生新requestId才能重新送出
+      currentRequestId=generateRequestId();
+      alert("商品金額已更新為 $"+Number(result.correctTotal).toLocaleString()+"，請確認後重新送出");
+      openConfirm(); // 重新整理確認彈窗內容（注意：openConfirm內部會再次產生新requestId，此處的重新賦值屬防呆覆蓋，行為一致）
+      btn.disabled=false;btn.textContent="確認送出";
+    }
     else{alert("送出失敗："+result.message);btn.disabled=false;btn.textContent="確認送出";}
   }catch(e){alert("網路錯誤，請稍後再試");btn.disabled=false;btn.textContent="確認送出";}
 }
