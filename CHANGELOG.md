@@ -1,7 +1,110 @@
 # 灶囍手作訂購管理系統 — CHANGELOG
 
 > 專案啟動：2026/06/16
-> 最後更新：2026/06/20
+> 最後更新：2026/06/22
+
+---
+
+## v1.7.2 — 第三階段：購物車與後端計價（2026/06/22）
+
+### 背景
+原本前台計算金額（商品小計、運費、總金額）並直接送往後端寫入 Google Sheet，後端完全信任前端數字，零驗證。本版將「計算金額」的權威來源從前端轉移至後端，前端僅送出結構化商品清單與配送選擇，最終金額一律由後端依 Google Sheet 商品主檔重新計算。
+
+### 新增：後端權威計價
+- 新增 `getProductCatalog()`：以「商品設定」Sheet 為唯一權威來源，讀取商品名稱／單價／重量／上架狀態
+- 新增後端版 `SET_DECOMPOSE_BACKEND` 套餐拆解對照表（與前端版本保持同步，寫死於 Code.gs 常數）
+- 新增 `calculateOrderPricing()`：依結構化商品清單（商品ID+數量）與取貨方式，重新計算商品小計、總重量、配送件數、運費、總金額、品項明細文字
+- 前端新增 `getOrderItemsList()`，將購物車內容組成結構化陣列 `[{id, qty}]` 隨訂單送出，取代原本僅送純文字 `itemDetail` 的方式
+
+### 新增：金額驗證機制（PRICE_MISMATCH）
+- 前端送出 `expectedTotal`（前端預期金額，僅作比對用途，非寫入依據）
+- 後端比對 `expectedTotal` 與後端計算結果：
+  - 一致 → 正常寫入訂單，使用後端計算的 `total`／`shippingFee`／`itemDetail`（不採用前端送來的版本）
+  - 不一致 → 不寫入 Sheet，回傳固定錯誤代碼 `PRICE_MISMATCH` 與正確金額，前端提示客人「金額已更新，請重新確認」，產生新 `requestId` 後才能重新送出
+  - 設計原則：金額異動絕不靜默覆蓋，必須經客人確認後才送出，避免信任問題
+- 新增 `INVALID_ITEMS` 防呆：訂單內含不存在於商品主檔、未上架、或數量不合法的商品時，整筆拒絕，不寫入
+
+### 新增：requestId 防重複送單
+- 前端每次開啟確認彈窗時產生唯一 `requestId`（時間戳+隨機字串）
+- 後端以 Script Properties 暫存近期已處理的 `requestId`（有效期10分鐘，逾期自動視為可清除）
+- 同一 `requestId` 重複送出時，直接回傳第一次的處理結果，不重複建立訂單
+
+### 修正：requestId 防重複機制的競態條件（LockService）
+- **問題**：初版防重複送單機制存在競態條件——兩個幾乎同時抵達的相同 `requestId` 請求，可能同時通過「尚未處理」的檢查，各自完成寫入，產生重複訂單。經實際測試（同一 requestId 連續發送兩次請求）重現此問題
+- **修正**：`submitOrder()` 整段邏輯（requestId檢查／重新計價／金額比對／寫入Sheet／標記完成）以 `LockService.getScriptLock()` 包覆，確保整個流程對同一時間的多個請求是序列化、不可被插隊的單一操作
+- 修正後重新測試：同一 `requestId` 連續送出，Sheet 僅新增一筆訂單，驗證通過
+
+### 修正：訂單編號重複生成問題
+- **問題**：`generateOrderId()` 原本透過讀取 Google Sheet 現有資料、取最大序號+1 的方式生成編號。即使在 LockService 鎖保護下，仍因 Google Sheet 試算表引擎「寫入後讀取」可能存在短暫非即時一致性，導致不同 `requestId` 的訂單在高頻請求下生成相同編號（測試重現：3筆不同訂單皆生成 `Z20260622001`）
+- **修正**：改用 Script Properties 維護「每日序號計數器」（key: `ORDER_SEQ_yyyyMMdd`），生成編號時直接對計數器執行「讀取→遞增→寫回」，不再依賴 Sheet 讀取結果
+- 修正後重新測試：不同 `requestId` 幾乎同時送出，訂單編號依序遞增、無重複，驗證通過
+
+### 確認不啟用（留待第四階段）
+- `deductStock()` 本階段刻意不啟用，維持既有狀態（已定義但不於 `submitOrder` 中呼叫）。原因：扣庫存與「庫存是否足夠」檢查須為同一原子操作的兩部分，本階段僅完成計價驗證，缺少庫存量檢查時啟用扣庫存有導致庫存變負數的風險
+
+### 修改檔案
+- `index.html`（`submitOrder()`、`openConfirm()`、新增 `getOrderItemsList()`／`generateRequestId()`）
+- `Code.gs`（新增 `getProductCatalog()`／`calculateOrderPricing()`／`checkDuplicateRequest()`／`markRequestProcessed()`，重構 `submitOrder()`，修正 `generateOrderId()`）
+
+### 測試結果摘要
+| 類別 | 項目 | 結果 |
+|---|---|---|
+| 核心安全 | 竄改 `expectedTotal` | ✅ 正確攔截為 `PRICE_MISMATCH`，未寫入 |
+| 核心安全 | 同 `requestId` 重複送出 | ✅ 僅產生一筆訂單 |
+| 核心安全 | 不同 `requestId` 幾乎同時送出 | ✅ 訂單編號正確遞增、無重複 |
+| 功能 | 正常下單（套餐+單品混合） | ✅ 金額／重量／品項明細皆正確 |
+| 功能 | 無效商品ID | ✅ 正確攔截為 `INVALID_ITEMS` |
+| 功能 | 自取／宅配／7-11 | ✅ 運費計算皆正確（$0／件數×$200／件數×$150） |
+| 回歸 | 第一、二階段既有功能 | ✅ 全數通過，未受影響 |
+
+---
+
+## v1.7.1 — 第二階段：後台登入保護（2026/06/21）
+
+### 背景
+`admin.html` 原僅以前端密碼提示（prompt）作為保護，`getOrders`／`updateOrder` 後端完全不驗證身分，任何人知道 API 網址即可繞過前端取得全部客人個資或竄改訂單狀態。
+
+### 新增：Token 登入驗證機制
+- 密碼存於 Google Apps Script「Script Properties」（`ADMIN_PASSWORD`），不寫死於任何前端檔案
+- 新增 `login()`／`verifyToken()`／`logout()`：登入成功產生隨機 token（兩組UUID拼接），24小時內有效，過期判斷一律以後端時間為準；同帳號新登入會使舊 token 立即失效
+- `getOrders`、`updateOrder` 皆須通過 `verifyToken()` 驗證；未通過則直接拒絕，`getOrders` 失敗時**不回傳任何訂單陣列**（姓名、電話、地址等個資完全不外洩）
+
+### 安全修正（複查後追加，四項）
+1. **XSS 風險修復**：`esc()` 函式原僅轉義 `& < >`，補上 `" '` 轉義；補上原本遺漏 `esc()` 的電話欄位（客人可控輸入，原為儲存型XSS風險點）；`orderId` 拼接於HTML屬性處與歷史訂單日期標籤一併補強防禦性轉義
+2. **Token 不放 URL／不輸出 console**：`getOrders` 由 GET 改為 POST，token 改置於 request body；移除所有會印出完整URL、token、或訂單明細內容的 `console.log`
+3. **固定錯誤代碼**：所有失敗回應統一新增 `code` 欄位（`AUTH_REQUIRED`／`AUTH_EXPIRED`／`AUTH_REPLACED`／`LOGIN_FAILED`／`VALIDATION_FAILED`／`ORDER_NOT_FOUND`／`UNKNOWN_ACTION`／`SERVER_ERROR` 等），前端改用 `isAuthError(code)` 判斷，取代原本不可靠的中文字串比對
+4. **updateOrder 雙重白名單**：新增 `UPDATE_FIELD_WHITELIST`，同時限制「可修改欄位」與「該欄位可接受的值」，杜絕任意字串寫入 Google Sheet
+
+### 修改檔案
+- `admin.html`（登入流程、token存取、API呼叫改帶token、esc強化）
+- `Code.gs`（`login`／`verifyToken`／`logout`／`doGet`／`doPost`／`updateOrder` 白名單）
+
+### 確認不影響
+- 訂單資料結構、前台 `index.html` 完全不受影響
+
+---
+
+## v1.7.0 — 第一階段：既有 Bug 修復（2026/06/21）
+
+### 背景
+系統上線運作一段時間後，累積七項待修正問題，涵蓋顯示錯誤、統計邏輯、資料完整性與防呆機制。
+
+### 修復清單
+1. **付款後五碼顯示多餘符號**：`admin.html` 字串拼接打字錯誤，移除多餘 `+`
+2. **今日實收金額邏輯**：原「今日營收」未排除取消訂單、且非實收金額（含未收款訂單）。修正為僅計入 `payStatus` 為「已付款」或「已收現金」的訂單，並更名「今日實收金額」以名實相符
+3. **後台狀態更新失敗復原機制**：原本 API 失敗時畫面仍顯示已更新成功的假象。修正為失敗時將畫面與本地資料還原至更新前狀態，並提示「已還原」
+4. **配達日期下限**：新增 `min` 屬性與 `validate()` 雙重防護，禁止選擇早於今天的配達日期
+5. **不可取日載入失敗警告**：原失敗時默默視為「全部可選」。修正為顯示明確警告，提醒客人聯絡店家確認，不阻擋下單（不可取日為店家排程考量，非強制流程卡點）
+6. **商品重量資料載入失敗時阻擋宅配/7-11送單**：原失敗時重量歸零，導致運費被誤算為 $0。修正為失敗時阻擋宅配／7-11送單（避免免費出貨），自取不受影響（運費恆為0，不依賴重量資料）
+7. **`getOrders()` 時間格式不一致**：Google Sheet 時間欄位視儲存狀態可能輸出 ISO 格式或斜線格式，導致前端 `String(o.time).startsWith(ymd)` 比對失效，影響今日訂單數／今日實收金額／今日自取宅配7-11統計／今日待處理區塊／歷史訂單日期分組共5處邏輯。修正為後端新增 `formatDateField()` 統一輸出格式
+
+### 修改檔案
+- `admin.html`（Bug 1、2、3）
+- `index.html`（Bug 4、5、6）
+- `Code.gs`（Bug 7）
+
+### 確認不影響
+- 全數為顯示/驗證/讀取邏輯調整，未變更 Google Sheet 任何欄位順序或既有資料
 
 ---
 
