@@ -155,10 +155,10 @@ body{background:#F4EDE0;color:var(--text);font-family:-apple-system,"Noto Sans T
   <div class="stat-card"><div class="num" id="stat-today-711">—</div><div class="lbl">今日7-11</div></div>
   <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">總訂單數</div></div>
 </div>
-  <!-- v1.9 低庫存警示條 -->
-<div id="lowStockAlert" style="display:none;margin:8px 14px 0;background:#FEF3E2;border-left:4px solid #B85E00;border-radius:8px;padding:10px 14px;">
-  <div style="font-size:11px;font-weight:700;color:#B85E00;letter-spacing:1px;margin-bottom:5px;">⚠️ 低庫存提醒（≤3份）</div>
-  <div id="lowStockItems" style="font-size:13px;color:#7A3C00;line-height:1.8;"></div>
+<!-- v1.9 低庫存警示條 -->
+<div id="lowStockAlert" style="display:none;margin:8px 14px 0;background:#FEF3E2;border-left:4px solid #8B1A1A;border-radius:8px;padding:12px 16px;">
+  <div style="font-size:13px;font-weight:800;color:#8B1A1A;letter-spacing:1px;margin-bottom:10px;">⚠️ 庫存警示</div>
+  <div id="lowStockItems"></div>
 </div>
   <div class="search-bar">
   <input class="search-input" id="searchInput" type="text" placeholder="搜尋姓名或手機號碼…" oninput="onSearchInput()">
@@ -707,12 +707,31 @@ async function loadProducts() {
       alertEl.style.display = "none";
       return;
     }
-    itemsEl.innerHTML = lowStock.map(p => {
-      const stock = p.stock;
-      const color = stock <= 0 ? "#B82E22" : "#7A3C00";
-      const label = stock <= 0 ? "（已超賣 " + Math.abs(stock) + " 份）" : "剩 " + stock + " 份";
-      return '<span style="margin-right:14px;color:' + color + ';font-weight:700;">' + esc(p.name) + ' ' + label + '</span>';
-    }).join("");
+    const oversold = lowStock.filter(p => p.stock <= 0);
+    const lowOnly  = lowStock.filter(p => p.stock > 0);
+    let html = "";
+
+    if (oversold.length > 0) {
+      html += '<div style="margin-bottom:8px;">';
+      html += '<div style="font-size:11px;font-weight:700;color:#B82E22;letter-spacing:1px;margin-bottom:4px;">🔴 已超賣</div>';
+      html += oversold.map(p =>
+        '<div style="font-size:14px;font-weight:800;color:#B82E22;padding:2px 0;">' +
+        esc(p.name) + '：超賣 ' + Math.abs(p.stock) + ' 份</div>'
+      ).join("");
+      html += '</div>';
+    }
+
+    if (lowOnly.length > 0) {
+      html += '<div style="' + (oversold.length > 0 ? 'margin-top:8px;border-top:1px solid #F0C88A;padding-top:8px;' : '') + '">';
+      html += '<div style="font-size:11px;font-weight:700;color:#B85E00;letter-spacing:1px;margin-bottom:4px;">🟠 低庫存</div>';
+      html += lowOnly.map(p =>
+        '<div style="font-size:14px;font-weight:700;color:#7A3C00;padding:2px 0;">' +
+        esc(p.name) + '：剩 ' + p.stock + ' 份</div>'
+      ).join("");
+      html += '</div>';
+    }
+
+    itemsEl.innerHTML = html;
     alertEl.style.display = "block";
   } catch(e) {
     // 靜默失敗，不影響主要功能
